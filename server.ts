@@ -78,10 +78,11 @@ import type {
   PendingSuggestion,
   ProjectMode,
   ProjectRecord,
+  StoreData,
   VaultEntry,
   WatchFolder,
 } from './src/lib/types';
-import { parseStoreData } from './src/lib/store_schema';
+import { StoreRepository } from './src/lib/store_repository';
 import { verifyProjectWorkspace } from './src/lib/verifier';
 import {
   detectSolutionDomain,
@@ -109,16 +110,7 @@ const HOST = process.env.HOST || '127.0.0.1';
 // would expose every API and sandbox route.
 assertSecureBinding(HOST, process.env.OMEGA_API_KEY);
 
-interface StoreData {
-  nextProjectId: number;
-  nextVaultId: number;
-  nextWatchId: number;
-  nextDialogueId: number;
-  projects: ProjectRecord[];
-  vault: VaultEntry[];
-  watches: WatchFolder[];
-  cognitive: CognitiveProfile;
-}
+const STORE_REPOSITORY = new StoreRepository(path.join(DATA_DIR, 'omega_store.db'), STORE_PATH);
 
 function getAiClient(): GoogleGenAI | null {
   const apiKey = (process.env.GEMINI_API_KEY || '').trim();
@@ -791,12 +783,13 @@ async function loadStore(): Promise<StoreData> {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
-    if (fs.existsSync(STORE_PATH)) {
-      const raw = fs.readFileSync(STORE_PATH, 'utf-8');
-      // Structural validation before any field is dereferenced. A corrupt
-      // store is handled by the catch below, which rebuilds a clean seed.
-      const parsed = parseStoreData<StoreData>(JSON.parse(raw));
-      if (Array.isArray(parsed.projects)) {
+    const migration = STORE_REPOSITORY.importLegacyIfNeeded();
+    if (migration.imported) console.log(`[Store] ${migration.reason}`);
+    if (STORE_REPOSITORY.hasData()) {
+      // Structural validation happens inside the repository before any field
+      // is dereferenced; a corrupt mirror is rejected in importLegacyIfNeeded.
+      const parsed = STORE_REPOSITORY.load();
+      {
         const defaultRouting = resolveAsymmetricRouting(getGovernorStats());
         let touched = false;
         for (const p of parsed.projects) {
@@ -863,12 +856,7 @@ async function loadStore(): Promise<StoreData> {
 }
 
 function saveStore(data: StoreData): void {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
-  const tmpPath = `${STORE_PATH}.tmp`;
-  fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2), 'utf-8');
-  fs.renameSync(tmpPath, STORE_PATH);
+  STORE_REPOSITORY.save(data);
 }
 
 async function startServer() {

@@ -370,6 +370,17 @@ export interface PendingSuggestion {
   projectId: number | null;
 }
 
+export interface StoreData {
+  nextProjectId: number;
+  nextVaultId: number;
+  nextWatchId: number;
+  nextDialogueId: number;
+  projects: ProjectRecord[];
+  vault: VaultEntry[];
+  watches: WatchFolder[];
+  cognitive: CognitiveProfile;
+}
+
 export interface CognitiveProfile {
   traits: Record<string, string>;
   recentDialogue: DialogueTurn[];

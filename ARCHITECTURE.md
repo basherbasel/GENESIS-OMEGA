@@ -26,7 +26,7 @@ genesis-omega/
 │   ├── main.tsx               تحميل React في جذر DOM.
 │   ├── components/            تسعة مكوّنات واجهة (انظر القائمة أدناه).
 │   └── lib/                   34 وحدة منطق (انظر القائمة أدناه).
-├── data/                      حالة التشغيل: omega_store.json وworkspaces وexports وvoice_cache.
+├── data/                      حالة التشغيل: omega_store.db (WAL) + مرآة omega_store.json + workspaces/exports/voice_cache.
 ├── backups/                   نسخ احتياطية موسومة بالطابع الزمني.
 ├── models.config.json         إعداد Ollama المحلي (النماذج والأدوار).
 ├── public/assets/aistudio/    أصول واجهة المنصة الأصلية.
@@ -61,6 +61,8 @@ genesis-omega/
 | solution_catalog.ts | 24 نطاق حل emits حزمة كاملة قابلة للتحقق. |
 | toolchain_doctor.ts | يفحص توفر أدوات الأنظمة والبيئات لكل لغة. |
 | types.ts | العقود المشتركة: ProjectRecord وGovernorStats أنواع الواجهة. |
+| store_repository.ts | مخزن SQLite WAL بواجهة load/save ومرآة JSON وهجرة تلقائية عند الاستعادة. |
+| store_schema.ts | مخطط Zod يمنع تحميل متجر تالف قبل استخدام حقوله. |
 | verifier.ts | يشغّل اختبارات نظام التشغيل الفعلية ويمنع أرقاماً مُختلقة. |
 | watcher.ts | يراقب المجلدات ويقارن SHA-256 ويُطلق تدقيقاً عند التغيير. |
 | *.test.ts | ثمانية ملفات اختبار تغطي 57 حالة (آخر تشغيل: 57 ناجح). |

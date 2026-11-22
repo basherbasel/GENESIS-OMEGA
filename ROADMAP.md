@@ -121,7 +121,9 @@ npm run lint && npm test
 
 ## 7. المرحلة 3 — التوسّع (الأسبوع 4–5 · P2)
 
-- [ ] نقل `omega_store.json` إلى SQLite WAL مع طبقة repository بنفس الواجهة.
+- [x] نقل المتجر إلى SQLite WAL عبر `src/lib/store_repository.ts` مع مرآة JSON للتوافق مع backup/restore.
+  - دليل فعلي: `journal=wal`, `projects=8`, `vault=3`, `watches=2` من `data/omega_store.db`.
+  - 3 اختبارات: WAL، هجرة JSON، إعادة استيراد بعد restore، رفض مرآة تالفة.
 - [ ] بثّ سجلات مباشر (SSE) بدل `hydrateAll()` المتكرر في `App.tsx`.
 - [ ] طابور خلفي لـ `runPipelineSynthesis` و`verifyProjectWorkspace` مع رقم مهمة وحالة.
 
@@ -145,7 +147,7 @@ npm run lint && npm test
 | 1 | المرحلة 0 | v1.0.0 مُسمّى بـ Bashar + Git |
 | 2 | المرحلة 1 | CI أخضر + اختبارات موسّعة |
 | 3 | المرحلة 2 | ربط آمن + rate limit + عزل Job Object (بلا Docker) |
-| 4 | المرحلة 3 (SQLite) | مخزن WAL |
+| 4 | المرحلة 3 (SQLite ✅) | `omega_store.db` بـ WAL + مرآة JSON |
 | 5 | المرحلة 3 (SSE + طابور) | سجلات لحظية + لا timeouts |
 | 6 | المرحلة 4 (لوحة + PDF) | Dashboard |
 | 7 | المرحلة 4 (لغة + E2E) | واجهة ثنائية اللغة + Playwright |
@@ -214,7 +216,7 @@ npm run lint && npm test
 
 ### الخطوات التالية بترتيب صارم (واحدة في كل جلسة)
 
-1. **المرحلة 3أ** — مخزن SQLite WAL مع طبقة repository بنفس واجهة `loadStore/saveStore`، واختبار هجرة من `omega_store.json` الحالي.
+1. ~~**المرحلة 3أ** — مخزن SQLite WAL مع طبقة repository واختبار هجرة.~~ ✅ منجز.
 2. **المرحلة 3ب** — بث سجلات SSE بدل `hydrateAll()`، مع اختبار اتصال واحد.
 3. **المرحلة 3ج** — طابور worker بمعرّف مهمة وحالة، واختبار عدم تجاوز المهلة.
 4. **المرحلة 4أ** — لوحة قياسات من `/api/status` و`/api/projects` (بدون مكتبة رسوم خارجية).

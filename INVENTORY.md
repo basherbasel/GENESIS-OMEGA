@@ -5,9 +5,9 @@
 ## طريقة الجرد
 
 ```
-git ls-files | Measure-Object -Line          → 93 ملفاً متتبعاً (بعد هذا الالتزام)
-Get-ChildItem src/lib/*.test.ts              → 18 ملف اختبار
-npm test                                     → 82 pass / 0 fail / 0 skipped
+git ls-files | Measure-Object -Line          → 95 ملفاً متتبعاً (بعد هذا الالتزام)
+Get-ChildItem src/lib/*.test.ts              → 19 ملف اختبار
+npm test                                     → 85 pass / 0 fail / 0 skipped
 npm run check                                → critical 9/9 · exit 0
 ```
 
@@ -16,12 +16,12 @@ npm run check                                → critical 9/9 · exit 0
 | المجلد | عدد الملفات | المحتوى |
 |---|---|---|
 | `(root)` | 25 | `server.ts`، إعدادات الحزمة، 15 ملف توثيق (منها `INVENTORY.md`)، `.gitignore`، `.env.example`، `models.config.json`، `package-lock.json`. |
-| `src` | 60 | `App.tsx`، `main.tsx`، `index.css`، 9 مكوّنات، وحدات `lib`، 18 ملف اختبار (ضمن الـ 60). |
+| `src` | 62 | `App.tsx`، `main.tsx`، `index.css`، 9 مكوّنات، وحدات `lib`، 19 ملف اختبار (ضمن الـ 62). |
 | `scripts` | 5 | `backup.ts`, `restore.ts`, `doctor.ts`, `check-secrets.ts`, `windows_job_sandbox.ps1`. |
 | `.github` | 1 | `workflows/ci.yml`. |
 | `public` | 2 | أصول المنصة الأصلية. |
 
-## سجل الاختبارات (18 ملفاً / 82 اختباراً)
+## سجل الاختبارات (19 ملفاً / 85 اختباراً)
 
 | الملف | عدد الحالات | ما يغطيه |
 |---|---|---|
@@ -41,6 +41,7 @@ npm run check                                → critical 9/9 · exit 0
 | `routing.test.ts` | 3 | توجيه الأدوار، رفض الحقن، وجود النماذج المحلية. |
 | `sandbox_runner.test.ts` | 3 | تعقيم البيئة، حالة عدم وجود عملية، إيقاف آمن. |
 | `solution_catalog.test.ts` | 6 | 24 نطاقاً، تحديد، توليد، اختبارات فعلية. |
+| `store_repository.test.ts` | 3 | WAL، هجرة JSON، إعادة استيراد بعد restore، فشل مغلق لمرآة تالفة. |
 | `store_schema.test.ts` | 2 | قبول متجر صالح ورفض تالف بمخطط Zod. |
 | `watcher.test.ts` | 2 | رفض المسارات النظامية، كشف تغيير SHA-256. |
 
