@@ -25,5 +25,8 @@ jobs:
       - name: Full test suite
         run: npm test
 
+      - name: Operational doctor (host-only gates reported as skipped)
+        run: npm run doctor -- --ci
+
       - name: Production build
         run: npm run build

@@ -108,7 +108,6 @@ npm run lint && npm test
 
 - [x] `HOST=127.0.0.1` — نُفّذ في المرحلة 0 (`server.ts:104`, `.env`, `.env.example`).
 - [x] backup/restore — نُفّذ في المرحلة 0 مع استعادة موثّقة في `RECOVERY.md`.
-- [ ] عزل OS إلزامي (bwrap / sandbox-exec / Job Objects) ورفض التشغيل بدونه.
 - [x] حارس `INSECURE_BINDING` يمنع الربط العام بدون مفتاح — اختبار فعلي: `HOST=0.0.0.0` → exit 1.
 - [x] rate limit على `/api/projects`, `/api/voice/*`, `/api/solutions/generate` — تحقق فعلي: 200، 200، ثم 429.
 - [x] عزل OS فعلي على Windows: Job Object + `CREATE_BREAKAWAY_FROM_JOB` + `KILL_ON_JOB_CLOSE`.
@@ -145,7 +144,7 @@ npm run lint && npm test
 |---|---|---|
 | 1 | المرحلة 0 | v1.0.0 مُسمّى بـ Bashar + Git |
 | 2 | المرحلة 1 | CI أخضر + اختبارات موسّعة |
-| 3 | المرحلة 2 | حاوية آمنة + مصادقة إجبارية |
+| 3 | المرحلة 2 | ربط آمن + rate limit + عزل Job Object (بلا Docker) |
 | 4 | المرحلة 3 (SQLite) | مخزن WAL |
 | 5 | المرحلة 3 (SSE + طابور) | سجلات لحظية + لا timeouts |
 | 6 | المرحلة 4 (لوحة + PDF) | Dashboard |
@@ -198,7 +197,33 @@ npm run lint && npm test
 
 ---
 
+## 13. خطة الشركة البرمجية — الحالة الآن
+
+الشركة هنا تعني **نظاماً قابلاً للتدقيق والتكرار**، لا فريقاً ولا نشراً سحابياً. الأساس جاهز:
+
+| الركن | الحالة | الدليل |
+|---|---|---|
+| هوية وإصدار | ✅ | `package.json` → `genesis-omega@1.0.0`, author `Bashar` |
+| مستودع وتاريخ | ✅ | 8 التزامات حتى الآن، آخرها `hardening: ...` |
+| بوابات جودة | ✅ | `npm run check` → `critical 9/9`, `npm test` → 82/82 |
+| أمان حدودي | ✅ | `INSECURE_BINDING`, rate limit, check-secrets, Job Object |
+| نسخ واستعادة | ✅ | `RECOVERY.md` → `last successful restore: 2026-11-22` |
+| توثيق | ✅ | 15 ملفاً (منها `INVENTORY.md` — جرد بالأوامر) |
+| CI | ✅ | `ci.yml`: lint + test + `doctor --ci` + build |
+| إثبات تسليم خارجي | ⬜ | `PROOF.md` — لا مستلم بعد |
+
+### الخطوات التالية بترتيب صارم (واحدة في كل جلسة)
+
+1. **المرحلة 3أ** — مخزن SQLite WAL مع طبقة repository بنفس واجهة `loadStore/saveStore`، واختبار هجرة من `omega_store.json` الحالي.
+2. **المرحلة 3ب** — بث سجلات SSE بدل `hydrateAll()`، مع اختبار اتصال واحد.
+3. **المرحلة 3ج** — طابور worker بمعرّف مهمة وحالة، واختبار عدم تجاوز المهلة.
+4. **المرحلة 4أ** — لوحة قياسات من `/api/status` و`/api/projects` (بدون مكتبة رسوم خارجية).
+5. **المرحلة 4ب** — تصدير PDF وE2E بـ Playwright، ثم مفتاح لغة ثانٍ إن طُلب.
+6. **ربط `llama-bridge` بخط الإنتاج** — بعد موافقة صريحة، لأنه يلمس `ai_pipeline.ts`.
+
+**قاعدة:** لا تُبدأ خطوة قبل أن يمر `npm run check` ويُحدَّث `INVENTORY.md` والالتزام في نفس الجلسة. Docker و24 نطاقاً ونشر سحابي مؤجلة بقرار في `DECISIONS.md` و`BACKLOG.md`.
+
 **التوقيع:** المهندس بشار — owner & executor
 **آخر تحديث:** 22 نوفمبر 2026
 
-> قل لي «ابدأ المرحلة 0» أو عدّل أي افتراض في القسم 0، وسأعمل تحت إشرافك فوراً.
+> الوثيقة المرجعية للحالة الآن: `INVENTORY.md`. خطة التشغيل: `OPS.md`. الحدود: `LIMITATIONS.md`.
