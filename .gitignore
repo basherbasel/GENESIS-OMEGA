@@ -1,0 +1,16 @@
+node_modules/
+build/
+dist/
+coverage/
+.DS_Store
+*.log
+
+# Runtime state, generated workspaces and local model binaries
+.aistudio/
+data/
+models/
+voices/
+piper_models/
+
+.env*
+!.env.example

@@ -1,0 +1,6 @@
+{
+  "name": "GENESIS-OMEGA Autonomous Software Studio",
+  "description": "Voice-controlled autonomous software engineering studio with a live audio waveform HUD, cognitive multi-turn dialogue, 18-language polyglot matrix, SBOM security guardian, legacy code migration, and sandbox benchmarking.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
