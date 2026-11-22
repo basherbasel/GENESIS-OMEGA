@@ -50,7 +50,10 @@
 - `scripts/windows_job_sandbox.ps1` ينشئ Job Object بـ `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE` ويُطلق العملية بـ `CREATE_BREAKAWAY_FROM_JOB` ثم يُسندها إلى الـ Job.
 - `src/lib/os_sandbox.ts` يمرّر بيئة مُعقّمة (بلا أسرار) ويتحقق من النتيجة قبل إرجاع أي عملية.
 - `sandbox_runner.ts` يقرأ stdout/stderr من ملفات يوفّرها المشرف، وإيقاف الـ sandbox يقتل المشرف فيُغلق الـ Job ويُقتل جميع الأبناء.
-- تحقق فعلي: `spawnIsolated` أعاد `ATTACHED|<pid>` والتقط `ALIVE` من stdout، واختبار المتحقق الحي نجح بـ 16/16 دون تخطٍ.
+- `CREATE_SUSPENDED` يمنع التفريخ قبل اكتمال الإسناد؛ `ResumeThread` يُستدعى بعده فقط، وأي فشل يُنهي العملية المعلّقة.
+- مقابض السجلات تُفتح بـ `FILE_SHARE_READ | FILE_SHARE_WRITE` و`bInheritHandle` حتى يقرأ `sandbox_runner` دون `ERROR_SHARING_VIOLATION`.
+- فشل الـ breakaway بـ `ACCESS_DENIED 5` يُوسم `CREATE_PROCESS_FAILED_BREAKAWAY_DENIED:5` ويُترجم إلى رسالة تشخيصية واضحة.
+- تحقق فعلي: `spawnIsolated` التقط `ALIVE` من stdout، واختبار قتل المشرف أنهى الحفيد داخل الـ Job، واختبار المتحقق الحي نجح دون تخطٍ.
 
 ## تحديد المعدل
 

@@ -114,6 +114,12 @@ public static class JobSandbox {
   [DllImport("kernel32.dll", SetLastError=true)]
   public static extern uint WaitForSingleObject(IntPtr handle, uint ms);
 
+  [DllImport("kernel32.dll", SetLastError=true)]
+  public static extern uint ResumeThread(IntPtr hThread);
+
+  [DllImport("kernel32.dll", SetLastError=true)]
+  public static extern bool TerminateProcess(IntPtr hProcess, uint exitCode);
+
   private static IntPtr CreateJob() {
     IntPtr job = CreateJobObject(IntPtr.Zero, null);
     if (job == IntPtr.Zero) throw new Exception("CREATE_JOB_FAILED:" + Marshal.GetLastWin32Error());
@@ -138,16 +144,24 @@ public static class JobSandbox {
   }
 
   public static string Launch(string exe, string argsPacked, string cwd, string outFile, string errFile) {
+    const uint CREATE_BREAKAWAY_FROM_JOB = 0x01000000;
+    const uint CREATE_SUSPENDED = 0x00000004;
+    // FILE_SHARE_READ | FILE_SHARE_WRITE — the Node log reader must be able to
+    // open these files while the isolated child is still writing to them.
+    const uint FILE_SHARE_READ_WRITE = 0x00000003;
+
     IntPtr job = IntPtr.Zero;
     IntPtr hOut = IntPtr.Zero;
     IntPtr hErr = IntPtr.Zero;
+    IntPtr hProcess = IntPtr.Zero;
+    IntPtr hThread = IntPtr.Zero;
     try {
       job = CreateJob();
       var sa = new SECURITY_ATTRIBUTES();
       sa.nLength = (uint)Marshal.SizeOf(typeof(SECURITY_ATTRIBUTES));
       sa.bInheritHandle = true; // required for STARTF_USESTDHANDLES redirection
-      hOut = CreateFile(outFile, 0x40000000, 3, ref sa, 2, 0x80, IntPtr.Zero);
-      hErr = CreateFile(errFile, 0x40000000, 3, ref sa, 2, 0x80, IntPtr.Zero);
+      hOut = CreateFile(outFile, 0x40000000, FILE_SHARE_READ_WRITE, ref sa, 2, 0x80, IntPtr.Zero);
+      hErr = CreateFile(errFile, 0x40000000, FILE_SHARE_READ_WRITE, ref sa, 2, 0x80, IntPtr.Zero);
       if (hOut == IntPtr.Zero || hErr == IntPtr.Zero)
         throw new Exception("CREATE_LOG_FAILED:" + Marshal.GetLastWin32Error());
 
@@ -166,24 +180,46 @@ public static class JobSandbox {
       si.hStdError = hErr;
 
       PROCESS_INFORMATION pi;
-      // CREATE_BREAKAWAY_FROM_JOB (0x01000000): the child leaves the parent's
-      // job so it can be assigned to this one. Inherited env is the filtered
-      // environment supplied to this supervisor by Node.
+      // Break away from the parent job, and start SUSPENDED so no grandchild
+      // can be forked before the Job Object assignment is complete.
       bool created = CreateProcess(null, quoted, IntPtr.Zero, IntPtr.Zero, true,
-        0x01000000, IntPtr.Zero, string.IsNullOrEmpty(cwd) ? null : cwd, ref si, out pi);
-      if (!created) throw new Exception("CREATE_PROCESS_FAILED:" + Marshal.GetLastWin32Error());
-
-      if (!AssignProcessToJobObject(job, pi.hProcess)) {
+        CREATE_BREAKAWAY_FROM_JOB | CREATE_SUSPENDED, IntPtr.Zero,
+        string.IsNullOrEmpty(cwd) ? null : cwd, ref si, out pi);
+      if (!created) {
         int err = Marshal.GetLastWin32Error();
-        CloseHandle(pi.hThread); CloseHandle(pi.hProcess);
-        throw new Exception("ASSIGN_FAILED:" + err);
+        if (err == 5)
+          return "CREATE_PROCESS_FAILED_BREAKAWAY_DENIED:5 " +
+                 "(parent job lacks JOB_OBJECT_LIMIT_BREAKAWAY_OK; CI/container context)";
+        return "CREATE_PROCESS_FAILED:" + err;
       }
-      CloseHandle(pi.hThread); CloseHandle(pi.hProcess);
+      hProcess = pi.hProcess;
+      hThread = pi.hThread;
+
+      if (!AssignProcessToJobObject(job, hProcess)) {
+        int err = Marshal.GetLastWin32Error();
+        // hThread/hProcess are terminated in finally — never resume a suspended
+        // process that failed to join the Job Object.
+        if (err == 5)
+          return "ASSIGN_FAILED_ACCESS_DENIED:5 " +
+                 "(nested-job policy blocked assignment)";
+        return "ASSIGN_FAILED:" + err;
+      }
+
+      if (ResumeThread(hThread) == 0xFFFFFFFF)
+        return "RESUME_THREAD_FAILED:" + Marshal.GetLastWin32Error();
+
+      CloseHandle(hThread); hThread = IntPtr.Zero;
+      CloseHandle(hProcess); hProcess = IntPtr.Zero;
       return "ATTACHED|" + pi.dwProcessId;
     } catch (Exception ex) { return ex.Message; }
     finally {
       // Keep the job open: the PowerShell process holds it until it exits.
-      // Log handles are inherited by the child and are released on exit.
+      if (hThread != IntPtr.Zero) CloseHandle(hThread);
+      if (hProcess != IntPtr.Zero) {
+        // Kills any suspended process left behind by a failed assignment.
+        TerminateProcess(hProcess, 1);
+        CloseHandle(hProcess);
+      }
       if (hOut != IntPtr.Zero) CloseHandle(hOut);
       if (hErr != IntPtr.Zero) CloseHandle(hErr);
     }

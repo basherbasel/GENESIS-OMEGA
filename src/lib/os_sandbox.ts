@@ -23,6 +23,29 @@ export interface SandboxDetection {
   detail: string;
 }
 
+/** Translate supervisor status codes into actionable Arabic diagnostics. */
+export function describeSandboxStatus(status: string): string {
+  if (status.startsWith('CREATE_PROCESS_FAILED_BREAKAWAY_DENIED:5')) {
+    return 'الـ Job الأب لا يسمح CREATE_BREAKAWAY_FROM_JOB (ACCESS_DENIED 5) — بيئة CI/حاوية';
+  }
+  if (status.startsWith('ASSIGN_FAILED_ACCESS_DENIED:5')) {
+    return 'سياسة Job متداخلة منعت إسناد العملية المعزولة (ACCESS_DENIED 5)';
+  }
+  if (status.startsWith('RESUME_THREAD_FAILED:')) {
+    return 'فشل استئناف العملية بعد إسنادها للـ Job — أُوقفت حمايةً';
+  }
+  if (status.startsWith('CREATE_PROCESS_FAILED:')) {
+    return `فشل إنشاء العملية المعزولة: ${status}`;
+  }
+  if (status.startsWith('ASSIGN_FAILED:')) {
+    return `فشل إسناد العملية إلى Job Object: ${status}`;
+  }
+  if (status.startsWith('CREATE_JOB_FAILED:') || status.startsWith('SET_LIMIT_FAILED:')) {
+    return `فشل إعداد Job Object: ${status}`;
+  }
+  return `حالة مشرف غير معروفة: ${status}`;
+}
+
 export class SandboxUnavailableError extends Error {
   readonly code = 'SANDBOX_UNAVAILABLE' as const;
 
@@ -103,7 +126,7 @@ export async function attachWindowsJob(pid: number): Promise<void> {
       const status = fs.readFileSync(statusFile, 'utf-8').trim();
       fs.rmSync(statusFile, { force: true });
       if (status === 'ATTACHED') return;
-      throw new SandboxUnavailableError(`Job Object attach failed: ${status}`);
+      throw new SandboxUnavailableError(`Job Object attach failed: ${describeSandboxStatus(status)}`);
     }
     await new Promise((resolve) => setTimeout(resolve, 60));
   }
@@ -190,7 +213,7 @@ export async function spawnIsolated(
       if (fs.existsSync(statusFile)) {
         const status = fs.readFileSync(statusFile, 'utf-8').trim();
         if (!status.startsWith('ATTACHED|')) {
-          throw new SandboxUnavailableError(`isolated spawn failed: ${status}`);
+          throw new SandboxUnavailableError(`isolated spawn failed: ${describeSandboxStatus(status)}`);
         }
         const pid = Number(status.split('|')[1]);
         if (!Number.isFinite(pid) || pid <= 0) {
