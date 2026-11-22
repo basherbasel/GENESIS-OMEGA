@@ -16,6 +16,7 @@ import JSZip from 'jszip';
 import { GoogleGenAI, ThinkingLevel, Type } from '@google/genai';
 
 import { synthesizeProject } from './src/lib/ai_pipeline';
+import { assertSecureBinding } from './src/lib/binding_guard';
 import { geminiModel } from './src/lib/gemini_models';
 import {
   discoverEndpoints,
@@ -58,6 +59,7 @@ import {
   pullOllamaModel,
   type OllamaStatus,
 } from './src/lib/ollama_client';
+import { RateLimiter } from './src/lib/rate_limit';
 import {
   computeUnifiedDiffs,
   evaluateWithAtomicRollback,
@@ -103,6 +105,9 @@ const PORT = Number(process.env.PORT || 3000);
 // Bind to localhost explicitly with HOST=127.0.0.1 on untrusted machines.
 // Default stays 0.0.0.0 so cloud/container deployments keep working.
 const HOST = process.env.HOST || '127.0.0.1';
+// Fail before creating the listener: a public bind without authentication
+// would expose every API and sandbox route.
+assertSecureBinding(HOST, process.env.OMEGA_API_KEY);
 
 interface StoreData {
   nextProjectId: number;
@@ -892,6 +897,29 @@ async function startServer() {
       return;
     }
     res.status(401).json({ error: 'غير مصرح: يلزم تسجيل الدخول أولاً.', authRequired: true });
+  });
+
+  // Fixed-window limiter on the expensive routes. Defaults are generous for a
+  // single-user workshop; OMEGA_RATE_LIMIT_* can tighten them when needed.
+  const rateMax = Math.max(1, Number(process.env.OMEGA_RATE_LIMIT_MAX || 120));
+  const rateWindowMs = Math.max(1000, Number(process.env.OMEGA_RATE_LIMIT_WINDOW_MS || 60_000));
+  const apiLimiter = new RateLimiter(rateMax, rateWindowMs);
+  const limitedPath = (p: string) =>
+    p.startsWith('/api/projects') || p.startsWith('/api/voice/') || p.startsWith('/api/solutions/generate');
+
+  app.use((req, res, next) => {
+    if (!limitedPath(req.path)) {
+      next();
+      return;
+    }
+    const verdict = apiLimiter.check(req.ip || 'unknown');
+    res.setHeader('X-RateLimit-Remaining', String(verdict.remaining));
+    if (!verdict.allowed) {
+      res.setHeader('Retry-After', String(verdict.retryAfterSec));
+      res.status(429).json({ error: 'طلبات كثيرة جداً؛ حاول مرة أخرى لاحقاً.', retryAfterSec: verdict.retryAfterSec });
+      return;
+    }
+    next();
   });
 
   app.get('/api/auth/status', (_req, res) => {

@@ -109,10 +109,12 @@ npm run lint && npm test
 - [x] `HOST=127.0.0.1` — نُفّذ في المرحلة 0 (`server.ts:104`, `.env`, `.env.example`).
 - [x] backup/restore — نُفّذ في المرحلة 0 مع استعادة موثّقة في `RECOVERY.md`.
 - [ ] عزل OS إلزامي (bwrap / sandbox-exec / Job Objects) ورفض التشغيل بدونه.
-- [ ] rate limit عام على `/api/projects`, `/api/voice/*`, `/api/solutions/generate`.
+- [x] حارس `INSECURE_BINDING` يمنع الربط العام بدون مفتاح — اختبار فعلي: `HOST=0.0.0.0` → exit 1.
+- [x] rate limit على `/api/projects`, `/api/voice/*`, `/api/solutions/generate` — تحقق فعلي: 200، 200، ثم 429.
+- [ ] عزل OS إلزامي (bwrap / sandbox-exec / Job Objects) ورفض التشغيل بدونه — الوحيد المتبقي من المرحلة 2.
 - Docker وdocker-compose **مؤجلان** في `BACKLOG.md` بقرار صريح؛ لا يُعاد إدراجهما هنا.
 
-**معايير القبول:** الحاوية تعمل، المنفذ 3000 غير مكشوف للعالم بدون مفتاح، وفحص الأسرار يعطي 0 تسريب.
+**معايير القبول:** المنفذ 3000 غير مكشوف للعالم بدون مفتاح ✓، فحص الأسرار 0 تسريب ✓، عزل OS ⬜.
 
 ---
 
