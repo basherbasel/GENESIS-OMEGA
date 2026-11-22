@@ -1,8 +1,8 @@
-import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import fs from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
-import { attachProcessIsolation, assertSandboxAvailable } from './os_sandbox';
+import type { ChildProcess } from 'node:child_process';
+import { spawnIsolated } from './os_sandbox';
 import type { ProjectRecord } from './types';
 import { materializeWorkspaceFiles } from './verifier';
 
@@ -13,18 +13,20 @@ interface RunningSandbox {
   cmdLabel: string;
   startedAt: string;
   logs: string[];
-  proc: ChildProcessWithoutNullStreams;
+  supervisor: ChildProcess;
+  isolatedPid: number;
+  stdoutFile: string;
+  stderrFile: string;
+  tempDir: string;
+  offsets: { out: number; err: number };
+  pump?: NodeJS.Timeout;
 }
 
 const activeSandboxes = new Map<number, RunningSandbox>();
 
 const SENSITIVE_ENV_KEY = /(?:API[_-]?KEY|TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIAL|PRIVATE[_-]?KEY|SESSION|COOKIE|AUTH)/i;
 
-/**
- * Build a minimal environment for generated sandbox code.
- * Secrets from the host process (e.g. GEMINI_API_KEY) must never be inherited
- * by user/LLM-authored programs, even though the sandbox is not a full container.
- */
+/** Build a minimal environment for generated sandbox code. */
 export function buildSandboxEnv(port: number): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = { ...process.env, PORT: String(port) };
   for (const key of Object.keys(env)) {
@@ -99,8 +101,6 @@ export async function startSandboxProcess(
   logs: string;
 }> {
   await stopSandboxProcess(project.id);
-  // Mandatory: never materialize or spawn generated code without OS isolation.
-  assertSandboxAvailable();
 
   const resolvedRoot = path.resolve(workspaceDir);
   materializeWorkspaceFiles(resolvedRoot, project.files);
@@ -119,19 +119,8 @@ export async function startSandboxProcess(
   const port = await pickFreePort();
   const baseUrl = `http://127.0.0.1:${port}`;
 
-  const child = spawn(spec.cmd, spec.args, {
-    cwd: resolvedRoot,
-    env: buildSandboxEnv(port),
-    stdio: ['pipe', 'pipe', 'pipe'],
-  });
-
-  try {
-    if (!child.pid) throw new Error('child process has no pid');
-    await attachProcessIsolation(child.pid);
-  } catch (err) {
-    child.kill('SIGKILL');
-    throw err;
-  }
+  // No unisolated path: spawnIsolated fails closed with SANDBOX_UNAVAILABLE.
+  const isolated = await spawnIsolated(spec.cmd, spec.args, resolvedRoot, buildSandboxEnv(port));
 
   const entry: RunningSandbox = {
     projectId: project.id,
@@ -140,22 +129,47 @@ export async function startSandboxProcess(
     cmdLabel: spec.label,
     startedAt: new Date().toISOString(),
     logs: [
-      `[Live OS Sandbox] بدء تشغيل الخادم الفعلي: ${spec.label} على ${baseUrl}`,
+      `[Live OS Sandbox · Job Object pid ${isolated.pid}] بدء التشغيل المعزول: ${spec.label} على ${baseUrl}`,
     ],
-    proc: child,
+    supervisor: isolated.supervisor,
+    isolatedPid: isolated.pid,
+    stdoutFile: isolated.stdoutFile,
+    stderrFile: isolated.stderrFile,
+    tempDir: isolated.tempDir,
+    offsets: { out: 0, err: 0 },
   };
 
-  const pushLog = (chunk: Buffer) => {
-    const line = chunk.toString('utf-8').trim();
-    if (!line) return;
-    entry.logs.push(line);
-    if (entry.logs.length > 40) entry.logs.shift();
+  const pushLine = (chunk: string) => {
+    for (const line of chunk.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      entry.logs.push(trimmed);
+      if (entry.logs.length > 40) entry.logs.shift();
+    }
   };
-  child.stdout.on('data', pushLog);
-  child.stderr.on('data', pushLog);
-  child.on('exit', () => {
+
+  entry.pump = setInterval(() => {
+    const targets: Array<[string, 'out' | 'err']> = [
+      [entry.stdoutFile, 'out'],
+      [entry.stderrFile, 'err'],
+    ];
+    for (const [file, key] of targets) {
+      try {
+        const stat = fs.statSync(file);
+        if (stat.size <= entry.offsets[key]) continue;
+        const buffer = fs.readFileSync(file);
+        pushLine(buffer.subarray(entry.offsets[key], stat.size).toString('utf-8'));
+        entry.offsets[key] = stat.size;
+      } catch {
+        // log file may not exist yet
+      }
+    }
+  }, 200);
+  entry.pump.unref?.();
+
+  isolated.supervisor.on('exit', () => {
     const cur = activeSandboxes.get(project.id);
-    if (cur && cur.proc === child) {
+    if (cur && cur.supervisor === isolated.supervisor) {
       activeSandboxes.delete(project.id);
     }
   });
@@ -170,11 +184,11 @@ export async function startSandboxProcess(
       port: null,
       baseUrl: null,
       liveProcess: false,
-      logs: `[Sandbox Fallback] تعذر استجابة العملية المباشرة خلال المهلة:\n${entry.logs.join('\n')}`,
+      logs: `[Sandbox Fallback] تعذر استجابة العملية المعزولة خلال المهلة:\n${entry.logs.join('\n')}`,
     };
   }
 
-  entry.logs.push(`[Health OK] استجاب الخادم الفعلي على ${baseUrl}/health بنجاح.`);
+  entry.logs.push(`[Health OK] استجاب الخادم المعزول على ${baseUrl}/health بنجاح.`);
   return {
     running: true,
     port,
@@ -188,15 +202,16 @@ export async function stopSandboxProcess(projectId: number): Promise<void> {
   const existing = activeSandboxes.get(projectId);
   if (!existing) return;
   activeSandboxes.delete(projectId);
+  clearInterval(existing.pump);
   try {
-    existing.proc.kill('SIGTERM');
-    await new Promise((r) => setTimeout(r, 150));
-    if (!existing.proc.killed) {
-      existing.proc.kill('SIGKILL');
-    }
+    // Closing the supervisor closes the Job Object; KILL_ON_JOB_CLOSE
+    // terminates the server child and all of its descendants.
+    existing.supervisor.kill('SIGKILL');
   } catch {
     // process may have exited already
   }
+  await new Promise((r) => setTimeout(r, 150));
+  fs.rmSync(existing.tempDir, { recursive: true, force: true, maxRetries: 8, retryDelay: 250 });
 }
 
 export function getLiveSandboxInfo(projectId: number): {
@@ -206,7 +221,7 @@ export function getLiveSandboxInfo(projectId: number): {
   logs: string;
 } | null {
   const entry = activeSandboxes.get(projectId);
-  if (!entry || entry.proc.killed || entry.proc.exitCode !== null) {
+  if (!entry || entry.supervisor.killed || entry.supervisor.exitCode !== null) {
     if (entry) activeSandboxes.delete(projectId);
     return null;
   }

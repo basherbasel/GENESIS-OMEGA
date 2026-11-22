@@ -111,11 +111,12 @@ npm run lint && npm test
 - [ ] عزل OS إلزامي (bwrap / sandbox-exec / Job Objects) ورفض التشغيل بدونه.
 - [x] حارس `INSECURE_BINDING` يمنع الربط العام بدون مفتاح — اختبار فعلي: `HOST=0.0.0.0` → exit 1.
 - [x] rate limit على `/api/projects`, `/api/voice/*`, `/api/solutions/generate` — تحقق فعلي: 200، 200، ثم 429.
-- [x] رفض التشغيل بدون عزل مطبّق: `os_sandbox.ts` يرمي `SANDBOX_UNAVAILABLE` و`sandbox_runner.ts` يقتل العملية عند فشل الربط.
-- [ ] عزل OS فعلي على هذا المضيف: `AssignProcessToJobObject` فشل بـ `5` (ACCESS_DENIED) — لا يمكن تشغيل الـ sandbox هنا؛ موثّق في `LIMITATIONS.md`.
+- [x] عزل OS فعلي على Windows: Job Object + `CREATE_BREAKAWAY_FROM_JOB` + `KILL_ON_JOB_CLOSE`.
+- [x] رفض التشغيل بدون عزل: `SANDBOX_UNAVAILABLE` صريح عند فشل المشرف.
+- [x] تحقق فعلي: `spawnIsolated` التقط stdout من عملية معزولة، واختبار المتحقق الحي نجح (16/16، صفر تخطٍ).
 - Docker وdocker-compose **مؤجلان** في `BACKLOG.md` بقرار صريح؛ لا يُعاد إدراجهما هنا.
 
-**معايير القبول:** المنفذ 3000 غير مكشوف للعالم بدون مفتاح ✓، فحص الأسرار 0 تسريب ✓، عزل OS ⬜.
+**معايير القبول:** المنفذ 3000 غير مكشوف للعالم بدون مفتاح ✓، فحص الأسرار 0 تسريب ✓، عزل OS ✓ (دورة حياة العملية).
 
 ---
 

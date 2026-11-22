@@ -30,8 +30,9 @@
 
 - `llama-bridge.ts` يوفّر mutex وtimeout وfail-closed، لكن `ai_pipeline.ts` ما زال يستدعي `ollama_client.ts` مباشرة؛ الربط مؤجل.
 - `healer.ts` يعمل على مسار التحقق، لكنه لا يُطبّق بعد على مخرجات المسار المحلي الجديد.
-- عزل OS غير متاح على هذا المضيف: `AssignProcessToJobObject` فشل بـ `ERROR_ACCESS_DENIED (5)` لأن العملية تتبع job أب，`startSandboxProcess` يفشل مغلقاً بـ `SANDBOX_UNAVAILABLE` بدل تشغيل غير معزول.
-- على Linux/macOS لا يوجد بعد تغليف فعلي بـ bwrap أو sandbox-exec؛ يُكتشف كغير متاح ويُرفض التشغيل.
+- عزل Windows يغطي **دورة حياة العملية** فقط: Job Object بـ `KILL_ON_JOB_CLOSE` يضمن قتل الأبناء عند الإيقاف، لكنه لا يفرض سياسة وصول للملفات أو الشبكة.
+- ربط عملية موجودة بالفعل بـ Job Object فشل بـ `ACCESS_DENIED (5)`؛ الحل المطبّق هو إطلاق العملية بـ `CREATE_BREAKAWAY_FROM_JOB` ثم إسنادها مباشرة، وليس الإسناد اللاحق.
+- على Linux/macOS لا يوجد بعد تغليف فعلي بـ bwrap أو sandbox-exec؛ يُكتشف كغير متاح ويُرفض التشغيل بـ `SANDBOX_UNAVAILABLE`.
 - تحديد المعدل مطبّق على `/api/projects` و`/api/voice/*` و`/api/solutions/generate` فقط بافتراض 120 طلباً/دقيقة؛ بقية `/api/*` غير محدودة.
 - حارس `INSECURE_BINDING` يمنع `HOST=0.0.0.0` دون مفتاح عند الإقلاع، لكنه لا يمنع مفتاحاً ضعيفاً أو تسريب جلسة.
 - لا يوجد وسم `source: "gemini-fallback"` على الاستدعاءات السحابية الحالية.

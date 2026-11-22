@@ -10,7 +10,7 @@
  * that starts an unisolated process.
  */
 
-import { spawn, spawnSync } from 'node:child_process';
+import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -119,4 +119,91 @@ export async function attachProcessIsolation(pid: number): Promise<SandboxDetect
     return detection;
   }
   throw new SandboxUnavailableError(`${detection.detail}; wrapping not implemented`);
+}
+
+export interface IsolatedProcess {
+  /** PID reported by the supervisor after the Job Object assignment. */
+  pid: number;
+  /** Supervisor process; killing it closes the job and terminates descendants. */
+  supervisor: ChildProcess;
+  stdoutFile: string;
+  stderrFile: string;
+  tempDir: string;
+}
+
+/**
+ * Spawn a process directly inside an isolated Job Object.
+ *
+ * The supervisor uses CREATE_BREAKAWAY_FROM_JOB so the child leaves the
+ * parent's job before being assigned to ours — this avoids the ACCESS_DENIED
+ * failure of attaching an already-inherited process. The inherited (filtered)
+ * environment travels through the supervisor's env.
+ */
+export async function spawnIsolated(
+  exe: string,
+  args: string[],
+  cwd: string,
+  env: NodeJS.ProcessEnv,
+): Promise<IsolatedProcess> {
+  assertSandboxAvailable();
+  if (process.platform !== 'win32') {
+    throw new SandboxUnavailableError('isolated spawning implemented only on Windows Job Objects');
+  }
+
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'omega-iso-'));
+  const stdoutFile = path.join(tempDir, 'stdout.log');
+  const stderrFile = path.join(tempDir, 'stderr.log');
+  const statusFile = path.join(tempDir, 'status.txt');
+  fs.writeFileSync(stdoutFile, '', 'utf-8');
+  fs.writeFileSync(stderrFile, '', 'utf-8');
+
+  const script = path.join(projectRoot(), 'scripts', 'windows_job_sandbox.ps1');
+  const supervisor = spawn(
+    'powershell',
+    [
+      '-NoProfile',
+      '-ExecutionPolicy',
+      'Bypass',
+      '-File',
+      script,
+      '-Mode',
+      'Launch',
+      '-Exe',
+      exe,
+      '-ArgsPacked',
+      args.join('\u001f'),
+      '-WorkingDirectory',
+      cwd,
+      '-StdoutFile',
+      stdoutFile,
+      '-StderrFile',
+      stderrFile,
+      '-StatusFile',
+      statusFile,
+    ],
+    { env, stdio: 'ignore' },
+  );
+
+  const deadline = Date.now() + 12_000;
+  try {
+    while (Date.now() < deadline) {
+      if (fs.existsSync(statusFile)) {
+        const status = fs.readFileSync(statusFile, 'utf-8').trim();
+        if (!status.startsWith('ATTACHED|')) {
+          throw new SandboxUnavailableError(`isolated spawn failed: ${status}`);
+        }
+        const pid = Number(status.split('|')[1]);
+        if (!Number.isFinite(pid) || pid <= 0) {
+          throw new SandboxUnavailableError(`isolated spawn returned invalid pid: ${status}`);
+        }
+        return { pid, supervisor, stdoutFile, stderrFile, tempDir };
+      }
+      await new Promise((resolve) => setTimeout(resolve, 60));
+    }
+    throw new SandboxUnavailableError('isolated supervisor did not report within 12s');
+  } catch (err) {
+    supervisor.kill('SIGKILL');
+    fs.rmSync(tempDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+    throw err;
+  }
 }
