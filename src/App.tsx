@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { AuthGate } from './components/AuthGate';
 import { LiveWaveformHud } from './components/LiveWaveformHud';
 import { MigrationView } from './components/MigrationView';
@@ -93,6 +93,17 @@ export default function App() {
 
   const handleAuthReady = useCallback(() => {
     void hydrateAll();
+  }, [hydrateAll]);
+
+  // Live push: the server publishes a `state` event on every store write.
+  // hydrateAll remains the single source of truth for refreshing the UI, but
+  // it is now event-driven instead of repeated polling after each action.
+  useEffect(() => {
+    const source = new EventSource('/api/events');
+    source.addEventListener('state', () => {
+      void hydrateAll();
+    });
+    return () => source.close();
   }, [hydrateAll]);
 
   const handleVoiceResult = (res: VoiceCommandResponse) => {

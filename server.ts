@@ -59,6 +59,7 @@ import {
   pullOllamaModel,
   type OllamaStatus,
 } from './src/lib/ollama_client';
+import { formatSseFrame, studioEvents } from './src/lib/event_bus';
 import { RateLimiter } from './src/lib/rate_limit';
 import {
   computeUnifiedDiffs,
@@ -857,6 +858,7 @@ async function loadStore(): Promise<StoreData> {
 
 function saveStore(data: StoreData): void {
   STORE_REPOSITORY.save(data);
+  studioEvents.publish('state', { projects: data.projects.length, at: new Date().toISOString() });
 }
 
 async function startServer() {
@@ -1206,6 +1208,37 @@ code{background:#020617;padding:2px 6px;border-radius:4px;color:#38bdf8}</style>
     }
     await refreshLocalModelStatus();
     res.json({ pulled: model.id, status: localModelStatus });
+  });
+
+  // 1c. Server-Sent Events: push state changes instead of polling from the UI.
+  app.get('/api/events', (req, res) => {
+    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.flushHeaders?.();
+    res.write(formatSseFrame(studioEvents.publish('ready', { status: 'connected' })));
+
+    const off = studioEvents.subscribe('state', (event) => {
+      try {
+        res.write(formatSseFrame(event));
+      } catch {
+        // client disconnected; cleanup happens on req 'close'
+      }
+    });
+    const heartbeat = setInterval(() => {
+      try {
+        res.write(': ping\n\n');
+      } catch {
+        // ignore a closed stream
+      }
+    }, 15_000);
+    heartbeat.unref?.();
+
+    req.on('close', () => {
+      off();
+      clearInterval(heartbeat);
+    });
   });
 
   // 2. Projects CRUD & Pipeline

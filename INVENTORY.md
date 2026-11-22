@@ -5,9 +5,9 @@
 ## طريقة الجرد
 
 ```
-git ls-files | Measure-Object -Line          → 95 ملفاً متتبعاً (بعد هذا الالتزام)
-Get-ChildItem src/lib/*.test.ts              → 19 ملف اختبار
-npm test                                     → 85 pass / 0 fail / 0 skipped
+git ls-files | Measure-Object -Line          → 97 ملفاً متتبعاً (بعد هذا الالتزام)
+Get-ChildItem src/lib/*.test.ts              → 20 ملف اختبار
+npm test                                     → 89 pass / 0 fail / 0 skipped
 npm run check                                → critical 9/9 · exit 0
 ```
 
@@ -16,18 +16,19 @@ npm run check                                → critical 9/9 · exit 0
 | المجلد | عدد الملفات | المحتوى |
 |---|---|---|
 | `(root)` | 25 | `server.ts`، إعدادات الحزمة، 15 ملف توثيق (منها `INVENTORY.md`)، `.gitignore`، `.env.example`، `models.config.json`، `package-lock.json`. |
-| `src` | 62 | `App.tsx`، `main.tsx`، `index.css`، 9 مكوّنات، وحدات `lib`، 19 ملف اختبار (ضمن الـ 62). |
+| `src` | 64 | `App.tsx`، `main.tsx`، `index.css`، 9 مكوّنات، وحدات `lib`، 20 ملف اختبار (ضمن الـ 64). |
 | `scripts` | 5 | `backup.ts`, `restore.ts`, `doctor.ts`, `check-secrets.ts`, `windows_job_sandbox.ps1`. |
 | `.github` | 1 | `workflows/ci.yml`. |
 | `public` | 2 | أصول المنصة الأصلية. |
 
-## سجل الاختبارات (19 ملفاً / 85 اختباراً)
+## سجل الاختبارات (20 ملفاً / 89 اختباراً)
 
 | الملف | عدد الحالات | ما يغطيه |
 |---|---|---|
 | `auth.test.ts` | 4 | جلسة HttpOnly، مقارنة ثابتة، خنق الدخول. |
 | `binding_guard.test.ts` | 3 | رفض `0.0.0.0` بلا مفتاح بـ `INSECURE_BINDING`. |
 | `doctor_ci.test.ts` | 2 | `doctor --ci` يفرض البوابات المحمولة ويُعلن المتخطى. |
+| `event_bus.test.ts` | 4 | عزل المواضيع، إلغاء الاشتراك، إطارات SSE، بث حي، فشل مستمع آمن. |
 | `export_fs.test.ts` | 1 | كتابة الحزمة ورفض مسار `../`. |
 | `git_deploy.test.ts` | 5 | تعقيم البيئة والـ remote ونشر حقيقي. |
 | `healer.test.ts` | 5 | تشخيص ورقع وتحقق ورفض تحسين غير مُقاس. |

@@ -61,6 +61,7 @@ genesis-omega/
 | solution_catalog.ts | 24 نطاق حل emits حزمة كاملة قابلة للتحقق. |
 | toolchain_doctor.ts | يفحص توفر أدوات الأنظمة والبيئات لكل لغة. |
 | types.ts | العقود المشتركة: ProjectRecord وGovernorStats أنواع الواجهة. |
+| event_bus.ts | ناقل pub-sub داخلي وإطارات SSE لدفع تغييرات الحالة إلى الواجهة. |
 | store_repository.ts | مخزن SQLite WAL بواجهة load/save ومرآة JSON وهجرة تلقائية عند الاستعادة. |
 | store_schema.ts | مخطط Zod يمنع تحميل متجر تالف قبل استخدام حقوله. |
 | verifier.ts | يشغّل اختبارات نظام التشغيل الفعلية ويمنع أرقاماً مُختلقة. |
