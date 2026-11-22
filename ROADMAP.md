@@ -34,16 +34,16 @@
 
 ## 2. أهدافك الشخصية (KPIs بنهاية الأسبوع 8)
 
-> **تحديث 22 نوفمبر 2026 — تم تنفيذ المرحلة 0 + بداية المرحلة 1 بواسطة بشار.**
-> أول commit: `8b70564 chore: establish genesis-omega v1.0.0 (Bashar)`.
+> **تحديث 22 نوفمبر 2026 — اكتملت المرحلة 0 والمرحلة 1 بواسطة بشار.**
+> الالتزامات: `8b70564` (الهوية)، `55732f9` (توثيق المرحلة 0)، `6181f85` (اختبارات المرحلة 1).
 > الكتالوج المحلي (34 نموذجاً) وعميل Ollama أُنجزا قبل المرحلة 0.
 
 | # | الهدف | مقياس النجاح | الحالة |
 |---|---|---|---|
 | K1 | هوية المشروع نظيفة | `package.json` باسم `genesis-omega` وإصدار `1.0.0` | ✅ |
 | K2 | معرّفات Gemini حقيقية | استبدال `gemini-4-*` بـ `gemini-3.8-flash` / `3.1-pro-preview` + `OMEGA_MODEL_*` | ✅ |
-| K3 | تغطية اختبارات | `npm test` → 53/53 أخضر | ✅ جزئياً |
-| K4 | CI يعمل | `.github/workflows/ci.yml`: install + lint + test + build | ✅ |
+| K3 | تغطية اختبارات | `npm test` → 68/68 أخضر + 5 ملفات اختبار مخصصة | ✅ |
+| K4 | CI يعمل | `ci.yml`: install + lint + test + build، و`npm run check` محلياً يشمل doctor | ✅ |
 | K5 | جاهز للإنتاج | Dockerfile غير جذري + مصادقة إجبارية + rate limit | ⬜ |
 | K6 | أداء متوقع | استبدال مخزن JSON بـ SQLite WAL | ⬜ |
 | K7 | سجل شخصي | 8 أسابيع موثّقة في القسم 9 | ⬜ |
@@ -97,19 +97,20 @@ npm run lint && npm test
 ## 5. المرحلة 1 — الثقة والجودة (الأسبوع 2 · P0)
 
 - [x] `.github/workflows/ci.yml`: `npm ci --ignore-scripts && npm run lint && npm test && npm run build` (استُبدل `doctor` بـ `build` لأن doctor يفحص أدوات Non-TypeScript غير متوفرة على CI).
-- [ ] اختبارات وحدات جديدة: `sandbox_runner.test.ts`, `watcher.test.ts`, `export_fs.test.ts`, `routing.test.ts`.
-- [ ] مخطط تحقق (Zod) في `loadStore()` لحماية `omega_store.json` من التلف.
+- [x] اختبارات وحدات جديدة: `sandbox_runner.test.ts` (3)، `watcher.test.ts` (2)، `export_fs.test.ts` (1)، `routing.test.ts` (3)، `store_schema.test.ts` (2).
+- [x] مخطط Zod في `src/lib/store_schema.ts` يستدعيه `loadStore()` في `server.ts` قبل استخدام أي حقل.
 
-**معايير القبول:**CI أخضر على push، و`npm test` يغطي 10 ملفات على الأقل.
+**معايير القبول:** `npm run check` → exit 0، `npm test` → 68/68، الخادم يعيد التحميل ويقرأ 8 مشاريع بعد التحقق.
 
 ---
 
 ## 6. المرحلة 2 — الأمان قبل النشر (الأسبوع 3 · P0) 🔴
 
-- [ ] تغيير الافتراضي `HOST` إلى `127.0.0.1` في `server.ts` أو فرض `OMEGA_API_KEY` عند `0.0.0.0`.
-- [ ] إضافة rate limit عام على `/api/projects`, `/api/voice/*`, `/api/solutions/generate`.
-- [ ] `Dockerfile` بمستخدم `omegauser` غير جذري + `docker-compose.yml` مع reverse proxy.
-- [ ] اختبار traversal إضافي على `resolveVoiceCacheFile` و`materializeExportToDisk`.
+- [x] `HOST=127.0.0.1` — نُفّذ في المرحلة 0 (`server.ts:104`, `.env`, `.env.example`).
+- [x] backup/restore — نُفّذ في المرحلة 0 مع استعادة موثّقة في `RECOVERY.md`.
+- [ ] عزل OS إلزامي (bwrap / sandbox-exec / Job Objects) ورفض التشغيل بدونه.
+- [ ] rate limit عام على `/api/projects`, `/api/voice/*`, `/api/solutions/generate`.
+- Docker وdocker-compose **مؤجلان** في `BACKLOG.md` بقرار صريح؛ لا يُعاد إدراجهما هنا.
 
 **معايير القبول:** الحاوية تعمل، المنفذ 3000 غير مكشوف للعالم بدون مفتاح، وفحص الأسرار يعطي 0 تسريب.
 
