@@ -60,6 +60,7 @@ import {
   type OllamaStatus,
 } from './src/lib/ollama_client';
 import { formatSseFrame, studioEvents } from './src/lib/event_bus';
+import { studioJobs } from './src/lib/job_queue';
 import { RateLimiter } from './src/lib/rate_limit';
 import {
   computeUnifiedDiffs,
@@ -959,6 +960,36 @@ async function startServer() {
   await refreshLocalModelStatus();
 
   const store = await loadStore();
+
+  // Background synthesis worker: one job at a time, visible id and status.
+  studioJobs.setHandler(async (raw) => {
+    const payload = raw as {
+      title: string;
+      prompt: string;
+      ecosystem?: EcosystemKey;
+      mode?: ProjectMode;
+      modelOverrides?: Partial<Record<AgentRole, string>>;
+      useAi?: boolean;
+      solutionDomain?: string;
+    };
+    const governor = getGovernorStats();
+    const project = await runPipelineSynthesis({
+      id: store.nextProjectId++,
+      title: payload.title,
+      prompt: payload.prompt.slice(0, governor.maxPromptChars),
+      mode: payload.mode === 'audit' ? 'audit' : 'new',
+      explicitEcosystem: payload.ecosystem,
+      vault: store.vault,
+      modelOverrides: payload.modelOverrides,
+      governor,
+      useAi: payload.useAi,
+      solutionDomain: payload.solutionDomain,
+    });
+    store.projects.unshift(project);
+    saveStore(store);
+    return { projectId: project.id, score: project.score, status: project.status };
+  });
+
   const piperTts = new PiperNeuralVoiceEngine({
     baseDir: __dirname,
     cacheDir: path.join(DATA_DIR, 'voice_cache'),
@@ -1219,13 +1250,15 @@ code{background:#020617;padding:2px 6px;border-radius:4px;color:#38bdf8}</style>
     res.flushHeaders?.();
     res.write(formatSseFrame(studioEvents.publish('ready', { status: 'connected' })));
 
-    const off = studioEvents.subscribe('state', (event) => {
+    const forward = (event: Parameters<typeof formatSseFrame>[0]) => {
       try {
         res.write(formatSseFrame(event));
       } catch {
         // client disconnected; cleanup happens on req 'close'
       }
-    });
+    };
+    const offState = studioEvents.subscribe('state', forward);
+    const offJob = studioEvents.subscribe('job', forward);
     const heartbeat = setInterval(() => {
       try {
         res.write(': ping\n\n');
@@ -1236,9 +1269,46 @@ code{background:#020617;padding:2px 6px;border-radius:4px;color:#38bdf8}</style>
     heartbeat.unref?.();
 
     req.on('close', () => {
-      off();
+      offState();
+      offJob();
       clearInterval(heartbeat);
     });
+  });
+
+  // 1d. Background jobs: return an id immediately, poll or listen over SSE.
+  app.post('/api/jobs', (req, res) => {
+    const title = String(req.body?.title || '').trim();
+    const prompt = String(req.body?.prompt || '').trim();
+    if (title.length < 2 || prompt.length < 5) {
+      res.status(400).json({ error: 'يرجى إدخال عنوان ووصف هندسي صالحين.' });
+      return;
+    }
+    const job = studioJobs.enqueue<Record<string, unknown>, { projectId: number; score: number; status: string }>(
+      'project.create',
+      {
+        title,
+        prompt,
+        ecosystem: req.body?.ecosystem,
+        mode: req.body?.mode,
+        modelOverrides: req.body?.modelOverrides,
+        useAi: req.body?.useAi === true,
+        solutionDomain: req.body?.solutionDomain,
+      },
+    );
+    res.status(202).json({ jobId: job.id, status: job.status, statusUrl: `/api/jobs/${job.id}` });
+  });
+
+  app.get('/api/jobs/:id', (req, res) => {
+    const job = studioJobs.get(Number(req.params.id));
+    if (!job) {
+      res.status(404).json({ error: 'المهمة غير موجودة.' });
+      return;
+    }
+    res.json({ job });
+  });
+
+  app.get('/api/jobs', (_req, res) => {
+    res.json({ jobs: studioJobs.list(), active: studioJobs.activeCount });
   });
 
   // 2. Projects CRUD & Pipeline

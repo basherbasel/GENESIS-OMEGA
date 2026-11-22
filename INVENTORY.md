@@ -5,9 +5,9 @@
 ## طريقة الجرد
 
 ```
-git ls-files | Measure-Object -Line          → 97 ملفاً متتبعاً (بعد هذا الالتزام)
-Get-ChildItem src/lib/*.test.ts              → 20 ملف اختبار
-npm test                                     → 89 pass / 0 fail / 0 skipped
+git ls-files | Measure-Object -Line          → 99 ملفاً متتبعاً (بعد هذا الالتزام)
+Get-ChildItem src/lib/*.test.ts              → 21 ملف اختبار
+npm test                                     → 92 pass / 0 fail / 0 skipped
 npm run check                                → critical 9/9 · exit 0
 ```
 
@@ -16,12 +16,12 @@ npm run check                                → critical 9/9 · exit 0
 | المجلد | عدد الملفات | المحتوى |
 |---|---|---|
 | `(root)` | 25 | `server.ts`، إعدادات الحزمة، 15 ملف توثيق (منها `INVENTORY.md`)، `.gitignore`، `.env.example`، `models.config.json`، `package-lock.json`. |
-| `src` | 64 | `App.tsx`، `main.tsx`، `index.css`، 9 مكوّنات، وحدات `lib`، 20 ملف اختبار (ضمن الـ 64). |
+| `src` | 66 | `App.tsx`، `main.tsx`، `index.css`، 9 مكوّنات، وحدات `lib`، 21 ملف اختبار (ضمن الـ 66). |
 | `scripts` | 5 | `backup.ts`, `restore.ts`, `doctor.ts`, `check-secrets.ts`, `windows_job_sandbox.ps1`. |
 | `.github` | 1 | `workflows/ci.yml`. |
 | `public` | 2 | أصول المنصة الأصلية. |
 
-## سجل الاختبارات (20 ملفاً / 89 اختباراً)
+## سجل الاختبارات (21 ملفاً / 92 اختباراً)
 
 | الملف | عدد الحالات | ما يغطيه |
 |---|---|---|
@@ -32,6 +32,7 @@ npm run check                                → critical 9/9 · exit 0
 | `export_fs.test.ts` | 1 | كتابة الحزمة ورفض مسار `../`. |
 | `git_deploy.test.ts` | 5 | تعقيم البيئة والـ remote ونشر حقيقي. |
 | `healer.test.ts` | 5 | تشخيص ورقع وتحقق ورفض تحسين غير مُقاس. |
+| `job_queue.test.ts` | 3 | تسلسل المهام، فشل معزول، أحداث الحالة. |
 | `integrity.test.ts` | 5 | SHA-256 وحارس المسارات وتسريب المتغيرات. |
 | `llama-bridge.test.ts` | 4 | mutex، timeout 100ms، MODEL_NOT_FOUND، ABORTED. |
 | `local_models.test.ts` | 6 | كتالوج 34 نموذجاً، توجيه محلي، عميل Ollama، معرّفات Gemini. |

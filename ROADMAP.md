@@ -127,7 +127,10 @@ npm run lint && npm test
 - [x] بثّ مباشر عبر `/api/events` (SSE) و`src/lib/event_bus.ts`؛ `App.tsx` يشترك بدل التحديث المتكرر.
   - دليل حي: `event: ready` ثم `event: state` بعد كل عملية تعديل (حالتا state مُلاحظتان).
   - 4 اختبارات event bus + بث SSE فعلي عبر http.
-- [ ] طابور خلفي لـ `runPipelineSynthesis` و`verifyProjectWorkspace` مع رقم مهمة وحالة.
+- [x] طابور worker عبر `src/lib/job_queue.ts` + `POST /api/jobs` و`GET /api/jobs/:id`.
+  - دليل حي: `jobId=1` انتقل إلى `done` وأنشأ المشروع `#9` (97/100, verified)، وعدد المشاريع 8←9.
+  - أحداث `event: job` ظهرت 3 مرات على SSE (queued/running/done).
+  - 3 اختبارات: تسلسل بلا تداخل، فشل لا يوقف الطابور، أحداث الحالة.
 
 **معايير القبول:** إنشاء مشروع مع 24 نطاقاً لا يسبب timeout، والسجلات تظهر لحظياً.
 
@@ -220,7 +223,7 @@ npm run lint && npm test
 
 1. ~~**المرحلة 3أ** — مخزن SQLite WAL مع طبقة repository واختبار هجرة.~~ ✅ منجز.
 2. ~~**المرحلة 3ب** — بث SSE بدل `hydrateAll()`.~~ ✅ منجز (`/api/events`).
-3. **المرحلة 3ج** — طابور worker بمعرّف مهمة وحالة، واختبار عدم تجاوز المهلة.
+3. ~~**المرحلة 3ج** — طابور worker بمعرّف مهمة وحالة.~~ ✅ منجز.
 4. **المرحلة 4أ** — لوحة قياسات من `/api/status` و`/api/projects` (بدون مكتبة رسوم خارجية).
 5. **المرحلة 4ب** — تصدير PDF وE2E بـ Playwright، ثم مفتاح لغة ثانٍ إن طُلب.
 6. **ربط `llama-bridge` بخط الإنتاج** — بعد موافقة صريحة، لأنه يلمس `ai_pipeline.ts`.

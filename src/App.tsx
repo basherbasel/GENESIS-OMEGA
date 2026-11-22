@@ -103,6 +103,9 @@ export default function App() {
     source.addEventListener('state', () => {
       void hydrateAll();
     });
+    source.addEventListener('job', () => {
+      void hydrateAll();
+    });
     return () => source.close();
   }, [hydrateAll]);
 
