@@ -416,7 +416,7 @@ PROCEDURE DIVISION.
   }
 });
 
-test('Live OS sandbox runner spawns generated Python backend on free port, serves SQLite CRUD probes, and stops cleanly', async () => {
+test('Live OS sandbox runner spawns generated Python backend on free port, serves SQLite CRUD probes, and stops cleanly', async (t) => {
   const tmpSandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'omega-sandbox-'));
   const files = generateProjectScaffold(
     'Live Billing API',
@@ -450,7 +450,16 @@ test('Live OS sandbox runner spawns generated Python backend on free port, serve
   } as ProjectRecord;
 
   try {
-    const started = await startSandboxProcess(tmpSandbox, dummyProj);
+    let started;
+    try {
+      started = await startSandboxProcess(tmpSandbox, dummyProj);
+    } catch (err) {
+      if ((err as { code?: string })?.code === 'SANDBOX_UNAVAILABLE') {
+        t.skip(`OS sandbox unavailable on this host: ${(err as Error).message}`);
+        return;
+      }
+      throw err;
+    }
     assert.equal(started.liveProcess, true);
     assert.ok(typeof started.port === 'number' && started.port > 0);
     assert.ok(getLiveSandboxInfo(dummyProj.id) !== null);
@@ -478,6 +487,6 @@ test('Live OS sandbox runner spawns generated Python backend on free port, serve
     assert.equal(getLiveSandboxInfo(dummyProj.id), null);
   } finally {
     await stopSandboxProcess(dummyProj.id);
-    fs.rmSync(tmpSandbox, { recursive: true, force: true });
+    fs.rmSync(tmpSandbox, { recursive: true, force: true, maxRetries: 8, retryDelay: 250 });
   }
 });

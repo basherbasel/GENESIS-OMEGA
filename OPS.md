@@ -65,4 +65,5 @@ npm run check:secrets  فحص الملفات المتتبعة لأنماط ال�
 - الخادم افتراضياً يربط على 127.0.0.1 فقط؛ `binding_guard.ts` يرفض 0.0.0.0 بلا `OMEGA_API_KEY`.
 - rate limit مطبّق على `/api/projects` و`/api/voice/*` و`/api/solutions/generate` بـ 120/دقيقة؛ يمكن تضييقه بـ `OMEGA_RATE_LIMIT_MAX`.
 - بقية مسارات `/api/*` و`/sandbox/*` غير محدودة؛ لا تعرض المنفذ للشبكة.
-- لا يوجد عزل OS للمشاريع المولّدة بعد؛ عاملها كرمز موثوق به فقط محلياً.
+- عزل OS غير متاح على هذا المضيف؛ `/api/projects/:id/sandbox/start` يفشل بـ `SANDBOX_UNAVAILABLE` بدل تشغيل غير معزول.
+- لا تعالج هذا كعطل مؤقت؛ راجع `LIMITATIONS.md` و`os_sandbox.ts` قبل محاولة تشغيل sandbox.

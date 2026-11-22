@@ -2,6 +2,7 @@ import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import fs from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
+import { attachProcessIsolation, assertSandboxAvailable } from './os_sandbox';
 import type { ProjectRecord } from './types';
 import { materializeWorkspaceFiles } from './verifier';
 
@@ -98,6 +99,8 @@ export async function startSandboxProcess(
   logs: string;
 }> {
   await stopSandboxProcess(project.id);
+  // Mandatory: never materialize or spawn generated code without OS isolation.
+  assertSandboxAvailable();
 
   const resolvedRoot = path.resolve(workspaceDir);
   materializeWorkspaceFiles(resolvedRoot, project.files);
@@ -121,6 +124,14 @@ export async function startSandboxProcess(
     env: buildSandboxEnv(port),
     stdio: ['pipe', 'pipe', 'pipe'],
   });
+
+  try {
+    if (!child.pid) throw new Error('child process has no pid');
+    await attachProcessIsolation(child.pid);
+  } catch (err) {
+    child.kill('SIGKILL');
+    throw err;
+  }
 
   const entry: RunningSandbox = {
     projectId: project.id,
