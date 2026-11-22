@@ -101,7 +101,7 @@ const STORE_PATH = path.join(DATA_DIR, 'omega_store.json');
 const PORT = Number(process.env.PORT || 3000);
 // Bind to localhost explicitly with HOST=127.0.0.1 on untrusted machines.
 // Default stays 0.0.0.0 so cloud/container deployments keep working.
-const HOST = process.env.HOST || '0.0.0.0';
+const HOST = process.env.HOST || '127.0.0.1';
 
 interface StoreData {
   nextProjectId: number;

@@ -28,6 +28,8 @@ export interface OllamaGenerateOptions {
   temperature?: number;
   keepAlive?: string;
   timeoutMs?: number;
+  /** External cancellation signal (combined with the internal timeout). */
+  signal?: AbortSignal;
 }
 
 export interface OllamaGenerateResult {
@@ -94,6 +96,7 @@ export async function generateWithOllama(params: OllamaGenerateOptions): Promise
     temperature = 0.2,
     keepAlive = '2m',
     timeoutMs = 90000,
+    signal,
   } = params;
 
   if (!model || !prompt.trim()) {
@@ -104,7 +107,7 @@ export async function generateWithOllama(params: OllamaGenerateOptions): Promise
     const response = await fetch(`${BASE_URL}/api/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      signal: withTimeout(timeoutMs),
+      signal: signal ? AbortSignal.any([withTimeout(timeoutMs), signal]) : withTimeout(timeoutMs),
       body: JSON.stringify({
         model,
         prompt,

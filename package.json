@@ -18,6 +18,10 @@
     "test:deploy": "tsx --test src/lib/git_deploy.test.ts",
     "test:auth": "tsx --test src/lib/auth.test.ts",
     "doctor": "tsx scripts/doctor.ts",
+    "backup": "tsx scripts/backup.ts",
+    "restore": "tsx scripts/restore.ts",
+    "check:secrets": "tsx scripts/check-secrets.ts",
+    "check": "npm run lint && npm test && npm run check:secrets && npm run doctor",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit"
   },

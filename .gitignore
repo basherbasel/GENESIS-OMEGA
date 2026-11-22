@@ -12,5 +12,8 @@ models/
 voices/
 piper_models/
 
+.env
 .env*
+*.gguf
+backups/
 !.env.example

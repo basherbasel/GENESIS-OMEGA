@@ -1,0 +1,10 @@
+{
+  "runtime": "ollama",
+  "baseUrl": "http://127.0.0.1:11434",
+  "defaultModel": "qwen2.5-coder:3b",
+  "models": [
+    { "id": "qwen2.5-coder:1.5b", "role": "fast", "quant": "Q4_K_M", "maxContextK": 32 },
+    { "id": "qwen2.5-coder:3b", "role": "balanced", "quant": "Q4_K_M", "maxContextK": 32 },
+    { "id": "qwen2.5-coder:7b", "role": "strong", "quant": "Q4_K_M", "maxContextK": 32 }
+  ]
+}
