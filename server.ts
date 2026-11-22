@@ -79,6 +79,7 @@ import type {
   VaultEntry,
   WatchFolder,
 } from './src/lib/types';
+import { parseStoreData } from './src/lib/store_schema';
 import { verifyProjectWorkspace } from './src/lib/verifier';
 import {
   detectSolutionDomain,
@@ -787,7 +788,9 @@ async function loadStore(): Promise<StoreData> {
     }
     if (fs.existsSync(STORE_PATH)) {
       const raw = fs.readFileSync(STORE_PATH, 'utf-8');
-      const parsed = JSON.parse(raw) as StoreData;
+      // Structural validation before any field is dereferenced. A corrupt
+      // store is handled by the catch below, which rebuilds a clean seed.
+      const parsed = parseStoreData<StoreData>(JSON.parse(raw));
       if (Array.isArray(parsed.projects)) {
         const defaultRouting = resolveAsymmetricRouting(getGovernorStats());
         let touched = false;
