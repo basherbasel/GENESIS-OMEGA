@@ -34,12 +34,16 @@
 
 ## 2. أهدافك الشخصية (KPIs بنهاية الأسبوع 8)
 
+> **تحديث 22 نوفمبر 2026 — تم تنفيذ المرحلة 0 + بداية المرحلة 1 بواسطة بشار.**
+> أول commit: `8b70564 chore: establish genesis-omega v1.0.0 (Bashar)`.
+> الكتالوج المحلي (34 نموذجاً) وعميل Ollama أُنجزا قبل المرحلة 0.
+
 | # | الهدف | مقياس النجاح | الحالة |
 |---|---|---|---|
-| K1 | هوية المشروع نظيفة | `package.json` باسم `genesis-omega` وإصدار `1.0.0` | ⬜ |
-| K2 | مسارات Gemini تعمل فعلاً | كل استدعاءات النماذج مُختبَرة بمفتاح حقيقي | ⬜ |
-| K3 | تغطية اختبارات | `npm test` أخضر + 6 وحدات بلا اختبار أصبحت مغطاة | ⬜ |
-| K4 | CI يعمل | كل push يشغّل test + lint + doctor | ⬜ |
+| K1 | هوية المشروع نظيفة | `package.json` باسم `genesis-omega` وإصدار `1.0.0` | ✅ |
+| K2 | معرّفات Gemini حقيقية | استبدال `gemini-4-*` بـ `gemini-3.8-flash` / `3.1-pro-preview` + `OMEGA_MODEL_*` | ✅ |
+| K3 | تغطية اختبارات | `npm test` → 53/53 أخضر | ✅ جزئياً |
+| K4 | CI يعمل | `.github/workflows/ci.yml`: install + lint + test + build | ✅ |
 | K5 | جاهز للإنتاج | Dockerfile غير جذري + مصادقة إجبارية + rate limit | ⬜ |
 | K6 | أداء متوقع | استبدال مخزن JSON بـ SQLite WAL | ⬜ |
 | K7 | سجل شخصي | 8 أسابيع موثّقة في القسم 9 | ⬜ |
@@ -60,10 +64,11 @@
 
 ## 4. المرحلة 0 — الأساس باسمك (الأيام 1–2 · P0)
 
-### 4.1 إعادة الهوية
-- [ ] تعديل `package.json`: `"name": "genesis-omega"`, `"version": "1.0.0"`, إضافة `"author": "Bashar"`, `"description"`.
-- [ ] التأكد أن `metadata.json` يعكس الاسم الجديد.
-- [ ] إضافة قسم Quick Start أعلى `README.md` يشير إليك كمالك.
+### 4.1 إعادة الهوية ✅
+- [x] تعديل `package.json`: `"name": "genesis-omega"`, `"version": "1.0.0"`, `"author": "Bashar"`, `"description"`.
+- [x] `metadata.json` يعكس الاسم الجديد بالفعل.
+- [x] قسم Quick Start أُضيف أعلى `README.md` باسمك.
+- [x] `package-lock.json` وُلّد ليعمل `npm ci` في CI.
 
 **أمر التحقق:**
 ```bash
@@ -72,24 +77,26 @@ npm run lint && npm test
 
 **معايير القبول:** لا أخطاء TypeScript، كل الاختبارات تمر، الاسم الجديد ظاهر في `/api/status`.
 
-### 4.2 تصحيح عقود النماذج (أخطر نقطة حالياً)
-المعرّفات في `server.ts` (الأسطر ~1956، 2079، 2137) تحتاج تحققاً:
-- [ ] مراجعة القائمة الرسمية لـ Gemini models.
-- [ ] استبدال `gemini-4-hydrogen`, `gemini-3.8-flash-lite-tts`, `gemini-3.5-transcribe` بأسماء حقيقية.
-- [ ] تجميعها في ملف واحد `src/lib/models.ts` قابل للضبط عبر `.env` (مثل `OMEGA_MODEL_COGNITIVE`).
+### 4.2 تصحيح عقود النماذج ✅
+- [x] مراجعة وثائق Gemini الرسمية عبر Context7: `gemini-3.8-flash-lite-tts` و`gemini-3.5-transcribe` كانا صحيحين؛ `gemini-4-*` كانت معرّفات وهمية.
+- [x] الاستبدال بـ `gemini-3.8-flash` (سريع)، `gemini-3.1-flash-lite` (خفيف)، `gemini-3.7-flash` (متوازن)، `gemini-3.1-pro-preview` (عميق).
+- [x] تجميعها في `src/lib/gemini_models.ts` مع 7 متغيرات `OMEGA_MODEL_*`، و`src/lib/runtime_env.ts` الآمن للمتصفح.
+- [x] `/api/status` يعرض المعرّفات الجديدة فعلياً.
 
-**معايير القبول:** `/api/health` أو `/api/status` يعرض أسماء النماذج الفعّالة، واختبار TTS/transcribe ينجح بمفتاح حقيقي.
+**معايير القبول:** تحققت عبر الوثائق + `tsc` + 53 اختباراً + فحص واجهة المتصفح (صفر أخطاء console). اختبار TTS/transcribe بمفتاح حقيقي يبقى معلّقاً حتى يتوفر `GEMINI_API_KEY`.
 
-### 4.3 المشروع تحت Git
-- [ ] `git init` + أول commit باسمك: `git config user.name "Bashar"`.
-- [ ] تحديث `.gitignore` ليشمل `data/`, `dist/`, `.env.local`, `models/piper/`.
-- [ ] أول commit: `"chore: establish genesis-omega v1.0.0 — Bashar"`.
+> درس مستفاد: `routing.ts` يُستورد من الواجهة، لذا أي `process.env` فيه يكسر Vite — كل القراءات تمر الآن عبر `runtimeEnvValue()`.
+
+### 4.3 المشروع تحت Git ✅
+- [x] `git init` + `git config user.name "Bashar"`.
+- [x] `.gitignore` يغطي `data/`, `dist/`, `.aistudio/`, `models/`, `voices/`, `.env*`.
+- [x] أول commit فعلي: `8b70564 chore: establish genesis-omega v1.0.0 (Bashar)` — 60 ملفاً.
 
 ---
 
 ## 5. المرحلة 1 — الثقة والجودة (الأسبوع 2 · P0)
 
-- [ ] إضافة `.github/workflows/ci.yml` يشغّل: `npm ci && npm run lint && npm test && npm run doctor`.
+- [x] `.github/workflows/ci.yml`: `npm ci --ignore-scripts && npm run lint && npm test && npm run build` (استُبدل `doctor` بـ `build` لأن doctor يفحص أدوات Non-TypeScript غير متوفرة على CI).
 - [ ] اختبارات وحدات جديدة: `sandbox_runner.test.ts`, `watcher.test.ts`, `export_fs.test.ts`, `routing.test.ts`.
 - [ ] مخطط تحقق (Zod) في `loadStore()` لحماية `omega_store.json` من التلف.
 

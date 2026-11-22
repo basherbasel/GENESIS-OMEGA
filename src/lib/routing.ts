@@ -1,6 +1,7 @@
 import type { AgentRole, GovernorStats, ModelRoutingConfig } from './types';
 import { LOCAL_CODING_MODELS, recommendLocalRouting, toModelOption } from './local_models';
 import { geminiModel } from './gemini_models';
+import { runtimeEnvFlag } from './runtime_env';
 
 export const AGENT_ROLE_LABELS: Record<AgentRole, { title: string; scope: string }> = {
   architect: {
@@ -84,7 +85,7 @@ export function resolveAsymmetricRouting(
   governor: Pick<GovernorStats, 'profile'> & Partial<Pick<GovernorStats, 'availableRamGb'>>,
   overrides?: Partial<Record<AgentRole, string>> | null,
 ): ModelRoutingConfig {
-  const localFirst = process.env.OMEGA_LOCAL_FIRST === '1';
+  const localFirst = runtimeEnvFlag('OMEGA_LOCAL_FIRST');
   const base: ModelRoutingConfig = localFirst
     ? recommendLocalRouting(
         { profile: governor.profile, availableRamGb: governor.availableRamGb ?? 8 },

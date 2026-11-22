@@ -35,9 +35,11 @@ const ENV_KEYS: Record<GeminiModelKind, string> = {
   transcribe: 'OMEGA_MODEL_GEMINI_TRANSCRIBE',
 };
 
+import { runtimeEnvValue } from './runtime_env';
+
 /** Resolve one model kind, honoring its OMEGA_MODEL_* override. */
 export function geminiModel(kind: GeminiModelKind): string {
-  return (process.env[ENV_KEYS[kind]] || '').trim() || FALLBACKS[kind];
+  return runtimeEnvValue(ENV_KEYS[kind]).trim() || FALLBACKS[kind];
 }
 
 /** Text-capable model IDs exposed in the routing catalog. */
