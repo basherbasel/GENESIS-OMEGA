@@ -8,7 +8,9 @@
 npm install
 cp .env.example .env.local   # أضف GEMINI_API_KEY اختيارياً للتوليد السحابي
 npm run dev                  # http://localhost:3000
-npm test                     # التحقق الكامل (52 اختباراً)
+npm test                     # 98 اختبار وحدة/تكامل
+npm run test:e2e             # 5 اختبارات متصفح حقيقية (Playwright)
+npm run check                # lint + test + secrets + doctor
 ```
 
 - **بدون مفتاح Gemini:** يعمل الاستوديو بالكامل عبر النماذج المحلية (Ollama) والمسار الحتمي.
@@ -155,7 +157,7 @@ instead of the generic scaffold. `POST /api/projects` also accepts an explicit
 
 ## Verification & integrity policy
 
-- `npm test` runs **every** test file (`omega`, `piper_tts`, and `integrity`). It is the
+- `npm test` runs **every** unit/integration test file under `src/lib/*.test.ts` (23 files, 98 cases). Browser tests are separate: `npm run test:e2e`. It is the
   canonical check; `npm run lint` / `npx tsc --noEmit` must also pass with zero errors.
 - Verification reports count **only tests the OS runner actually executed**. When no test
   suite exists in a generated project, the report says so explicitly instead of inventing

@@ -1,13 +1,14 @@
 # INVENTORY — جرد الملفات والاختبارات
 
-هذا السجل مولّد من أوامر فعلية، لا من تقدير. آخر تحديث: 2026-11-22.
+هذا السجل مولّد من أوامر فعلية، لا من تقدير. آخر تحديث: 2026-11-23.
 
 ## طريقة الجرد
 
 ```
-git ls-files | Measure-Object -Line          → 104 ملفاً متتبعاً (بعد هذا الالتزام)
+git ls-files | Measure-Object -Line          → 106 ملفاً متتبعاً (بعد هذا الالتزام)
 Get-ChildItem src/lib/*.test.ts              → 23 ملف اختبار
 npm test                                     → 98 pass / 0 fail / 0 skipped
+npm run test:e2e                             → 5 pass / 0 fail (Playwright chromium)
 npm run check                                → critical 9/9 · exit 0
 ```
 
@@ -19,6 +20,8 @@ npm run check                                → critical 9/9 · exit 0
 | `src` | 71 | `App.tsx`، `main.tsx`، `index.css`، 10 مكوّنات، وحدات `lib`، 23 ملف اختبار (ضمن الـ 71). |
 | `scripts` | 5 | `backup.ts`, `restore.ts`, `doctor.ts`, `check-secrets.ts`, `windows_job_sandbox.ps1`. |
 | `.github` | 1 | `workflows/ci.yml`. |
+| `e2e` | 1 | `studio.spec.ts` — 5 اختبارات متصفح حقيقية عبر Playwright. |
+| `(root)` | — | `playwright.config.ts` لإعداد المتصفح والخادم. |
 | `public` | 2 | أصول المنصة الأصلية. |
 
 ## سجل الاختبارات (23 ملفاً / 98 اختباراً)
@@ -53,7 +56,8 @@ npm run check                                → critical 9/9 · exit 0
 
 ```
 npm run lint         → tsc --noEmit
-npm test             → 82/82
+npm test             → 98/98
+npm run test:e2e     → 5/5 (Playwright)
 npm run check:secrets→ SECRETS_OK findings=0
 npm run doctor       → critical 9/9
 npm run doctor -- --ci → critical 4/4 · 5 skipped (مُعلن)

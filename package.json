@@ -17,6 +17,7 @@
     "test:healer": "tsx --test src/lib/healer.test.ts",
     "test:deploy": "tsx --test src/lib/git_deploy.test.ts",
     "test:auth": "tsx --test src/lib/auth.test.ts",
+    "test:e2e": "playwright test",
     "doctor": "tsx scripts/doctor.ts",
     "backup": "tsx scripts/backup.ts",
     "restore": "tsx scripts/restore.ts",
@@ -40,6 +41,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.1",
     "@types/express": "^4.17.21",
     "@types/node": "^22.14.0",
     "@types/react": "^19.3.0",

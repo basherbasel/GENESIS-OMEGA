@@ -26,6 +26,7 @@ npm run backup         نسخ حالة التشغيل
 npm run check          lint + 57 اختبار + فحص أسرار + doctor
 npm run doctor         فحص جاهزية مفصّل بجدول [✓/✗/—]
 npm run doctor -- --ci فحص CI: البوابات المحمولة تُنفَّذ، والبوابات المضيفة تُعلَن كمتخطاة لا كنجاح صامت
+npm run test:e2e    5 اختبارات متصفح حقيقية (Playwright chromium)، منفصلة عن npm test
 npm run check:secrets  فحص الملفات المتتبعة لأنماط البيانات السرية
 ```
 

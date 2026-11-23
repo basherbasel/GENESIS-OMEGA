@@ -145,7 +145,7 @@ npm run lint && npm test
   - دليل حي: `has_print_button=True`, `has_media_print=True`, `has_title=True`.
   - حد صريح: PDF يولّده محرك طباعة المتصفح، لا مولّد PDF أصلي — انظر `LIMITATIONS.md`.
 - [ ] مفتاح لغة إنجليزية للواجهة — مؤجل حتى يُطلب صراحةً.
-- [ ] اختبار Playwright E2E — مؤجل: `playwright ABSENT`؛ يحتاج موافقة على dependency وتنزيل متصفح.
+- [x] اختبار Playwright E2E — `e2e/studio.spec.ts` + `playwright.config.ts`، 5/5 ناجح على chromium.
 
 ---
 
@@ -159,7 +159,7 @@ npm run lint && npm test
 | 4 | المرحلة 3 (SQLite ✅) | `omega_store.db` بـ WAL + مرآة JSON |
 | 5 | المرحلة 3 (SSE + طابور) | سجلات لحظية + لا timeouts |
 | 6 | المرحلة 4 (لوحة + PDF) | Dashboard |
-| 7 | المرحلة 4 (لغة + E2E) | واجهة ثنائية اللغة + Playwright |
+| 7 | المرحلة 4 (E2E) | 5 اختبارات Playwright + لوحة + PDF |
 | 8 | مراجعة نهائية | إصدار 1.0.0 جاهز للنشر + توثيق |
 
 ### روتينك اليومي (ساعتان)
@@ -249,7 +249,8 @@ npm run lint && npm test
 | 4أ — اللوحة | ✅ | `DashboardView` بـ CSS خالص من `dashboard_metrics.ts` |
 | 4ب — PDF | ✅ | `@media print` + `window.print()` + رابط `?print=1` |
 | 5 — ربط الجسر المحلي | ✅ | `local_synthesis.ts`، `engine=ollama-local` حياً، `ai_pipeline.ts` لم يُلمس |
-| 4ج — E2E/لغة | ⬜ | مؤجل: Playwright غير مثبت، لغة ثانية لم تُطلب |
+| 4ج — E2E | ✅ | 5 اختبارات Playwright حقيقية (`npm run test:e2e`) |
+| 4د — لغة إنجليزية | ⬜ | مؤجلة لأنها لم تُطلب |
 
 ### 14.2 خريطة الملفات (102 ملف متتبع)
 
@@ -291,7 +292,7 @@ npm run restore -- <dir> --yes → RESTORE_OK
 
 - عزل الشبكة/الملفات داخل الـ Job (دورة الحياة فقط).
 - مولّد PDF أصلي (الطباعة تتم في المتصفح).
-- Playwright وواجهة إنجليزية وربط `llama-bridge` بخط الإنتاج (بانتظار موافقة/طلب).
+- واجهة إنجليزية فقط (لم تُطلب)؛ Playwright وربط `llama-bridge` أُنجزا بالفعل.
 - Docker و24 نطاقاً ونشر سحابي (قرار `DECISIONS.md`).
 - إثبات تسليم خارجي (`PROOF.md` فارغ من التسليم).
 

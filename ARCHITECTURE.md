@@ -25,12 +25,14 @@ genesis-omega/
 │   ├── index.css              تنسيقات Tailwind والثيم الداكن.
 │   ├── main.tsx               تحميل React في جذر DOM.
 │   ├── components/            عشرة مكوّنات واجهة (انظر القائمة أدناه).
-│   └── lib/                   34 وحدة منطق (انظر القائمة أدناه).
+│   └── lib/                   وحدات المنطق (انظر القائمة أدناه).
 ├── data/                      حالة التشغيل: omega_store.db (WAL) + مرآة omega_store.json + workspaces/exports/voice_cache.
 ├── backups/                   نسخ احتياطية موسومة بالطابع الزمني.
 ├── models.config.json         إعداد Ollama المحلي (النماذج والأدوار).
 ├── public/assets/aistudio/    أصول واجهة المنصة الأصلية.
-└── .github/workflows/ci.yml   install + lint + test + build.
+├── playwright.config.ts       إعداد Playwright: webServer + chromium + baseURL.
+├── e2e/studio.spec.ts         5 اختبارات E2E حقيقية (تنقل/لوحة/نموذج/SSE/PDF).
+└── .github/workflows/ci.yml   install + lint + test + doctor --ci + build.
 ```
 
 ## وحدات src/lib — سطر لكل وحدة
@@ -69,13 +71,14 @@ genesis-omega/
 | store_schema.ts | مخطط Zod يمنع تحميل متجر تالف قبل استخدام حقوله. |
 | verifier.ts | يشغّل اختبارات نظام التشغيل الفعلية ويمنع أرقاماً مُختلقة. |
 | watcher.ts | يراقب المجلدات ويقارن SHA-256 ويُطلق تدقيقاً عند التغيير. |
-| *.test.ts | ثمانية ملفات اختبار تغطي 57 حالة (آخر تشغيل: 57 ناجح). |
+| `*.test.ts` | 23 ملف اختبار تغطي 98 حالة (آخر تشغيل: 98 ناجح، 0 فاشل). |
+| `playwright.config.ts` + `e2e/studio.spec.ts` | 5 اختبارات متصفح E2E منفصلة عن `npm test`. |
 
 ## مكوّنات الواجهة
 
 | المكوّن | الدور |
 |---|---|
-| TopNav.tsx | شريط التنقل بين خمسة عروض وزر مشروع جديد. |
+| TopNav.tsx | شريط التنقل بين ستة عروض وزر مشروع جديد. |
 | LiveWaveformHud.tsx | موجات صوتية حية وشريك معرفي وأوامر صوتية. |
 | StudioView.tsx | خط الإنتاج وتفاصيل المشروع وتوزيع النماذج. |
 | SolutionCatalogView.tsx | كتالوج الـ24 نطاقاً ورفعها إلى خط الإنتاج. |
