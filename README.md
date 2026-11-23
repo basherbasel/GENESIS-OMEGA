@@ -5,14 +5,18 @@
 ## Quick Start — المهندس بشار
 
 ```bash
+# جهاز جديد (Windows: powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap.ps1)
+sh scripts/bootstrap.sh                  # Node≥20 + Ollama + install + doctor + check
+sh scripts/bootstrap.sh --pull-models    # يسحب النماذج صراحةً فقط عند الطلب
 npm install
 cp .env.example .env.local   # أضف GEMINI_API_KEY اختيارياً للتوليد السحابي
-npm run dev                  # http://localhost:3000
-npm test                     # 98 اختبار وحدة/تكامل
-npm run test:e2e             # 9 اختبارات متصفح حقيقية (Playwright)
+npm run dev                  # http://127.0.0.1:3000
+npm test                     # 115 اختبار وحدة/تكامل
+npm run test:e2e             # 10 اختبارات متصفح حقيقية (Playwright)
 npm run check                # lint + test + secrets + doctor
 ```
 
+- **ترخيص وحوكمة:** [MIT License](LICENSE) · [CONTRIBUTING.md](CONTRIBUTING.md) · [SECURITY.md](SECURITY.md). `ai_pipeline.ts` منطقة محظورة التعديل؛ كل استنتاج محلي يمر عبر `local_synthesis.ts` → `llama-bridge.generate()`.
 - **بدون مفتاح Gemini:** يعمل الاستوديو بالكامل عبر النماذج المحلية (Ollama) والمسار الحتمي.
 - **تشغيل محلي أولاً:** `OMEGA_LOCAL_FIRST=1 npm run dev`
 - انظر قسم [Local quantized coding models](#local-quantized-coding-models-ollama) لاختيار النماذج.
@@ -189,7 +193,7 @@ curl http://localhost:3000/api/enterprise/ingest/runs                     # last
 
 ## Verification & integrity policy
 
-- `npm test` runs **every** unit/integration test file under `src/lib/*.test.ts` (27 files, 115 cases). Browser tests are separate: `npm run test:e2e` (9 cases). It is the
+- `npm test` runs **every** unit/integration test file under `src/lib/*.test.ts` (27 files, 115 cases). Browser tests are separate: `npm run test:e2e` (10 cases, including full bilingual shell parity across all views). It is the
   canonical check; `npm run lint` / `npx tsc --noEmit` must also pass with zero errors.
 - Verification reports count **only tests the OS runner actually executed**. When no test
   suite exists in a generated project, the report says so explicitly instead of inventing

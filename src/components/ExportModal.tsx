@@ -1,8 +1,10 @@
+import { t, type Language } from '../lib/i18n';
 import React, { useState } from 'react';
 import { CheckCircle2, Download, GitBranch, Package, Rocket, X } from 'lucide-react';
 import type { ExportBundleManifest, GitDeployResult, ProjectRecord } from '../lib/types';
 
 interface ExportModalProps {
+  language: Language;
   project: ProjectRecord;
   onClose: () => void;
   onProjectUpdated: () => Promise<void>;
@@ -12,7 +14,10 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   project,
   onClose,
   onProjectUpdated,
-}) => {
+
+  language,}) => {
+  const tr = (key: Parameters<typeof t>[1], vars?: Record<string, string | number>) => t(language, key, vars);
+
   const [mode, setMode] = useState<'local_bundle' | 'git_deploy'>('local_bundle');
   const [remoteUrl, setRemoteUrl] = useState('https://github.com/genesis-omega/service-release.git');
   const [branch, setBranch] = useState('main');
@@ -56,14 +61,14 @@ export const ExportModal: React.FC<ExportModalProps> = ({
         error?: string;
       };
       if (!resp.ok || !data.manifest) {
-        setError(data.error || 'تعذر تجهيز حزمة التصدير.');
+        setError(data.error || tr('exp.prepareError'));
         return;
       }
       setManifest(data.manifest);
       if (data.deployment) setDeployResult(data.deployment.result);
       await onProjectUpdated();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'حدث خطأ أثناء الاتصال بالخادم.');
+      setError(err instanceof Error ? err.message : tr('exp.connectError'));
     } finally {
       setBusy(false);
     }
@@ -80,16 +85,16 @@ export const ExportModal: React.FC<ExportModalProps> = ({
         <div className="flex items-center justify-between border-b border-slate-800 pb-3">
           <div>
             <h2 id="export-modal-title" className="text-base font-bold text-slate-100">
-              تصدير ونشر المشروع — {project.title}
+              {tr('exp.titleWith', { title: project.title })}
             </h2>
             <p className="text-xs text-slate-400">
-              تجهيز حزمة تصدير مفحوصة بـ SHA-256، مع إمكانية تنفيذ الدفع عبر Git فعلياً بأوامر معزولة وبدون حفظ مفاتيح.
+              {tr('exp.subtitle')}
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            aria-label="إغلاق نافذة التصدير"
+            aria-label={tr('exp.close')}
             className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-slate-100 cursor-pointer"
           >
             <X className="h-4 w-4" aria-hidden="true" />
@@ -108,7 +113,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             }`}
           >
             <Package className="h-3.5 w-3.5" aria-hidden="true" />
-            <span>بيان الحزمة المحلية (Manifest)</span>
+            <span>{tr('exp.localManifest')}</span>
           </button>
           <button
             type="button"
@@ -121,7 +126,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             }`}
           >
             <GitBranch className="h-3.5 w-3.5" aria-hidden="true" />
-            <span>نشر عبر مستودع Git</span>
+            <span>{tr('exp.gitDeploy')}</span>
           </button>
         </div>
 
@@ -130,7 +135,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="sm:col-span-2">
                 <label htmlFor="export-remote-url" className="block text-xs text-slate-300 mb-1">
-                  رابط مستودع Git (HTTPS أو SSH بدون مفاتيح مضمّنة)
+                  {tr('exp.remoteUrl')}
                 </label>
                 <input
                   id="export-remote-url"
@@ -143,7 +148,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
               </div>
               <div>
                 <label htmlFor="export-branch" className="block text-xs text-slate-300 mb-1">
-                  الفرع (Branch)
+                  {tr('exp.branch')}
                 </label>
                 <input
                   id="export-branch"
@@ -156,7 +161,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
               </div>
               <div>
                 <label htmlFor="export-commit" className="block text-xs text-slate-300 mb-1">
-                  رسالة الاعتماد (Commit Message)
+                  {tr('exp.commitMessage')}
                 </label>
                 <input
                   id="export-commit"
@@ -180,9 +185,9 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                   className="mt-0.5 accent-cyan-500"
                 />
                 <span>
-                  تنفيذ الدفع فعلياً الآن (إنشاء Commit + Push عبر أوامر Git حقيقية).
+                  {tr('exp.executePush')}
                   <span className="block text-[11px] text-amber-300/80">
-                    لا تفعّل هذا إلا في مستودع تملكه؛ الدفع عملية خارجية نهائية.
+                    {tr('exp.pushWarning')}
                   </span>
                 </span>
               </label>
@@ -194,7 +199,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                     onChange={(e) => setDryRun(e.target.checked)}
                     className="accent-cyan-500"
                   />
-                  <span>معاينة آمنة: أنشئ Commit محلياً دون Push (Dry Run)</span>
+                  <span>{tr('exp.dryRun')}</span>
                 </label>
               )}
             </div>
@@ -209,14 +214,14 @@ export const ExportModal: React.FC<ExportModalProps> = ({
               className="rounded-lg bg-cyan-500 px-4 py-2 text-xs font-semibold text-slate-950 hover:bg-cyan-400 disabled:opacity-50 cursor-pointer"
             >
               {busy
-                ? 'جاري التحقق والتجهيز...'
+                ? tr('exp.busy')
                 : mode === 'local_bundle'
-                  ? 'توليد بيان التحقق والحزمة'
+                  ? tr('exp.generateBundle')
                   : executeDeploy
                     ? dryRun
-                      ? 'معاينة النشر دون دفع'
-                      : 'تنفيذ النشر الفعلي عبر Git'
-                    : 'توليد سكربت الدفع الآمن (deploy/git_push.sh)'}
+                      ? tr('exp.previewDeploy')
+                      : tr('exp.realDeploy')
+                    : tr('exp.generateScript')}
             </button>
 
             <a
@@ -224,7 +229,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
               className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-200 hover:border-slate-500"
             >
               <Download className="h-3.5 w-3.5" aria-hidden="true" />
-              <span>تحميل الأرشيف الكامل (.zip)</span>
+              <span>{tr('exp.downloadZip')}</span>
             </a>
           </div>
         </form>
@@ -234,16 +239,16 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
               <div className="inline-flex items-center gap-1.5 text-emerald-400 font-semibold">
                 <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-                <span>تم تجهيز بيان التصدير وحفظه فعلياً على القرص</span>
+                <span>{tr('exp.manifestReady')}</span>
               </div>
               <span className="font-mono text-slate-400 tabular-nums">
-                {manifest.fileCount} ملف · {(manifest.totalBytes / 1024).toFixed(1)} KB
+                {tr('exp.fileCount', { n: manifest.fileCount, kb: (manifest.totalBytes / 1024).toFixed(1) })}
               </span>
             </div>
 
             {manifest.exportedDir && (
               <div className="flex flex-wrap items-center justify-between gap-2 rounded border border-slate-800 bg-slate-900/70 px-3 py-1.5 text-xs">
-                <span className="text-slate-400">مسار الحفظ على القرص:</span>
+                <span className="text-slate-400">{tr('exp.savedAt')}</span>
                 <span dir="ltr" className="font-mono text-cyan-300">
                   {manifest.exportedDir}
                   {manifest.gitInitialized ? ' (Git initialized)' : ''}
@@ -260,8 +265,8 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 <table className="w-full text-right text-xs">
                   <thead className="bg-slate-900 text-slate-400">
                     <tr>
-                      <th className="px-3 py-1.5 font-medium">المسار</th>
-                      <th className="px-3 py-1.5 font-medium">الحجم</th>
+                      <th className="px-3 py-1.5 font-medium">{tr('exp.path')}</th>
+                      <th className="px-3 py-1.5 font-medium">{tr('exp.size')}</th>
                       <th className="px-3 py-1.5 font-medium">SHA-256</th>
                     </tr>
                   </thead>
@@ -292,12 +297,12 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 <span>
                   {deployResult.success
                     ? deployResult.dryRun
-                      ? 'اكتملت المعاينة محلياً — لم يُجرَ أي Push'
-                      : 'تم تنفيذ الالتزام والدفع عبر Git فعلياً'
-                    : 'فشل تنفيذ النشر — راجع مخرجات الأوامر أدناه'}
+                      ? tr('exp.previewDone')
+                      : tr('exp.pushDone')
+                    : tr('exp.pushFailed')}
                 </span>
               </div>
-              <span className="font-mono text-slate-400">{deployResult.steps.length} أوامر منفذة</span>
+              <span className="font-mono text-slate-400">{deployResult.steps.length} {tr('exp.commandsRun')}</span>
             </div>
             <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
               <div className="rounded border border-slate-800 bg-slate-900/70 p-2">
@@ -305,15 +310,15 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 <div dir="ltr" className="font-mono text-cyan-300">{(deployResult.commitHash || '—').slice(0, 12)}</div>
               </div>
               <div className="rounded border border-slate-800 bg-slate-900/70 p-2">
-                <div className="text-[10px] text-slate-500">الفرع</div>
+                <div className="text-[10px] text-slate-500">{tr('exp.branchShort')}</div>
                 <div dir="ltr" className="font-mono text-slate-200">{deployResult.branch}</div>
               </div>
               <div className="rounded border border-slate-800 bg-slate-900/70 p-2">
                 <div className="text-[10px] text-slate-500">Push</div>
-                <div className="font-mono text-slate-200">{deployResult.pushed ? 'تم' : deployResult.dryRun ? 'معاينة' : 'لم يتم'}</div>
+                <div className="font-mono text-slate-200">{deployResult.pushed ? tr('exp.yes') : deployResult.dryRun ? tr('exp.preview') : tr('exp.no')}</div>
               </div>
               <div className="rounded border border-slate-800 bg-slate-900/70 p-2">
-                <div className="text-[10px] text-slate-500">المستودع</div>
+                <div className="text-[10px] text-slate-500">{tr('exp.remoteShort')}</div>
                 <div dir="ltr" className="truncate font-mono text-slate-200">{deployResult.remote}</div>
               </div>
             </div>

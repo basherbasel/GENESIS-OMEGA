@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { AuthGate } from './components/AuthGate';
 import { DashboardView } from './components/DashboardView';
 import { EnterpriseView } from './components/EnterpriseView';
-import { persistLanguage, readStoredLanguage, type Language } from './lib/i18n';
+import { persistLanguage, readStoredLanguage, t, type Language } from './lib/i18n';
 import { LiveWaveformHud } from './components/LiveWaveformHud';
 import { MigrationView } from './components/MigrationView';
 import { SolutionCatalogView } from './components/SolutionCatalogView';
@@ -89,7 +89,7 @@ export default function App() {
       }
       setGlobalError(null);
     } catch (err) {
-      setGlobalError(err instanceof Error ? err.message : 'تعذر تحميل بيانات الاستوديو.');
+      setGlobalError(err instanceof Error ? err.message : t(language, 'app.loadError'));
     } finally {
       setLoading(false);
     }
@@ -404,7 +404,7 @@ export default function App() {
   };
 
   return (
-    <AuthGate onReady={handleAuthReady}>
+    <AuthGate language={language} onReady={handleAuthReady}>
       <div dir={language === 'ar' ? 'rtl' : 'ltr'} className="min-h-screen bg-slate-950 text-slate-100">
       <TopNav
         activeView={activeView}
@@ -423,6 +423,7 @@ export default function App() {
         onVoiceResult={handleVoiceResult}
         onConfirmSuggestion={handleConfirmSuggestion}
         onDismissSuggestion={handleDismissSuggestion}
+          language={language}
       />
 
       {globalError && (
@@ -460,9 +461,10 @@ export default function App() {
           onHealProject={handleHealProject}
           onAiSynthesize={handleAiSynthesizeProject}
           onRefreshProjects={hydrateAll}
+          language={language}
         />
       ) : activeView === 'solutions' ? (
-        <SolutionCatalogView onPromoteToProject={handlePromoteSolution} />
+        <SolutionCatalogView language={language} onPromoteToProject={handlePromoteSolution} />
       ) : activeView === 'watch' ? (
         <WatchView
           watches={watches}
@@ -470,6 +472,7 @@ export default function App() {
           onToggleWatch={handleToggleWatch}
           onScanAll={handleScanAllWatches}
           onDeleteWatch={handleDeleteWatch}
+          language={language}
         />
       ) : activeView === 'dashboard' ? (
         <DashboardView projects={projects} governor={governor} activeRouting={activeRouting} language={language} />
@@ -484,9 +487,10 @@ export default function App() {
           activeRouting={activeRouting}
           onAddVaultRule={handleAddVaultRule}
           onDeleteVaultRule={handleDeleteVaultRule}
+          language={language}
         />
       ) : (
-        <MigrationView onPromoteMigratedProject={handlePromoteMigratedProject} />
+        <MigrationView language={language} onPromoteMigratedProject={handlePromoteMigratedProject} />
       )}
       </div>
     </AuthGate>

@@ -1,3 +1,4 @@
+import { t, type Language } from '../lib/i18n';
 import React, { useMemo, useState } from 'react';
 import { BookOpen, Brain, Search, Trash2 } from 'lucide-react';
 import { AGENT_ROLE_LABELS } from '../lib/routing';
@@ -11,6 +12,7 @@ import type {
 } from '../lib/types';
 
 interface VaultViewProps {
+  language: Language;
   projects: ProjectRecord[];
   vault: VaultEntry[];
   cognitive: CognitiveProfile;
@@ -28,7 +30,10 @@ export const VaultView: React.FC<VaultViewProps> = ({
   activeRouting,
   onAddVaultRule,
   onDeleteVaultRule,
-}) => {
+
+  language,}) => {
+  const tr = (key: Parameters<typeof t>[1], vars?: Record<string, string | number>) => t(language, key, vars);
+
   const [search, setSearch] = useState('');
   const [domain, setDomain] = useState('');
   const [pattern, setPattern] = useState('');
@@ -59,7 +64,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!domain.trim() || !pattern.trim() || !wisdom.trim()) {
-      setError('يرجى تعبئة المجال والنمط والقاعدة الهندسية.');
+      setError(tr('vault.needFields'));
       return;
     }
     setError(null);
@@ -74,7 +79,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
       setPattern('');
       setWisdom('');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'تعذر حفظ القاعدة الهندسية.');
+      setError(err instanceof Error ? err.message : tr('vault.saveError'));
     } finally {
       setBusy(false);
     }
@@ -85,40 +90,40 @@ export const VaultView: React.FC<VaultViewProps> = ({
   return (
     <div className="mx-auto max-w-[1440px] px-4 py-6 sm:px-6 space-y-6">
       <div className="border-b border-slate-800 pb-4">
-        <h1 className="text-xl font-bold text-slate-100">الإحصائيات وخزينة الخبرات المعرفية</h1>
+        <h1 className="text-xl font-bold text-slate-100">{tr('vault.title')}</h1>
         <p className="mt-1 text-sm text-slate-400">
-          مؤشرات الإنتاجية الهندسية، ذاكرة الأنماط العابرة للمشاريع، والملف المعرفي للشريك الصوتي.
+          {tr('vault.subtitle')}
         </p>
       </div>
 
       {/* 5-Column KPI Strip */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
         <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-4">
-          <div className="text-xs text-slate-400">إجمالي المشاريع</div>
+          <div className="text-xs text-slate-400">{tr('vault.total')}</div>
           <div className="mt-1 font-mono text-2xl font-bold text-slate-100 tabular-nums">
             {metrics.total}
           </div>
         </div>
         <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-4">
-          <div className="text-xs text-slate-400">المشاريع المُتحقّقة</div>
+          <div className="text-xs text-slate-400">{tr('vault.verified')}</div>
           <div className="mt-1 font-mono text-2xl font-bold text-emerald-400 tabular-nums">
             {metrics.verified}
           </div>
         </div>
         <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-4">
-          <div className="text-xs text-slate-400">متوسط الجودة والأمان</div>
+          <div className="text-xs text-slate-400">{tr('vault.avgScore')}</div>
           <div className="mt-1 font-mono text-2xl font-bold text-cyan-400 tabular-nums">
             {metrics.avgScore}/100
           </div>
         </div>
         <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-4">
-          <div className="text-xs text-slate-400">الاختبارات المنجزة</div>
+          <div className="text-xs text-slate-400">{tr('vault.tests')}</div>
           <div className="mt-1 font-mono text-2xl font-bold text-slate-100 tabular-nums">
             {metrics.totalTests}
           </div>
         </div>
         <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-4 col-span-2 sm:col-span-1">
-          <div className="text-xs text-slate-400">الذاكرة المتاحة (EcoGovernor)</div>
+          <div className="text-xs text-slate-400">{tr('vault.ram')}</div>
           <div className="mt-1 font-mono text-2xl font-bold text-sky-400 tabular-nums">
             {governor ? `${governor.availableRamGb} GB` : '—'}
           </div>
@@ -129,24 +134,24 @@ export const VaultView: React.FC<VaultViewProps> = ({
       {governor && (
         <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-300">
-            <span className="font-semibold text-slate-100">توزيع موارد العتاد الذكي (EcoResourceGovernor)</span>
+            <span className="font-semibold text-slate-100">{tr('vault.hardware')}</span>
             <div className="flex flex-wrap items-center gap-3 font-mono tabular-nums text-slate-400">
-              <span>النظام: {governor.os}</span>
+              <span>{tr('vault.os')} {governor.os}</span>
               <span aria-hidden="true">·</span>
-              <span>الأنوية: {governor.cpuCores}</span>
+              <span>{tr('vault.cores')} {governor.cpuCores}</span>
               <span aria-hidden="true">·</span>
-              <span>الذاكرة الكلية: {governor.totalRamGb} GB</span>
+              <span>{tr('vault.totalRam')} {governor.totalRamGb} GB</span>
               <span aria-hidden="true">·</span>
-              <span>الاستهلاك: {governor.ramUsedPct}%</span>
+              <span>{tr('vault.usage')} {governor.ramUsedPct}%</span>
               <span aria-hidden="true">·</span>
-              <span className="text-cyan-400">الوضع: {governor.profile}</span>
+              <span className="text-cyan-400">{tr('vault.profile')} {governor.profile}</span>
             </div>
           </div>
 
           {activeRouting && (
             <div className="border-t border-slate-800 pt-3">
               <div className="text-xs font-semibold text-slate-300 mb-2">
-                مصفوفة التوجيه غير المتماثل للنماذج (Asymmetric Model Routing)
+                {tr('vault.routing')}
               </div>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
                 {(Object.keys(AGENT_ROLE_LABELS) as AgentRole[]).map((role) => (
@@ -172,18 +177,18 @@ export const VaultView: React.FC<VaultViewProps> = ({
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <BookOpen className="h-4 w-4 text-cyan-400" aria-hidden="true" />
-              <h2 className="text-base font-semibold text-slate-100">خزينة الخبرات العابرة للمشاريع</h2>
+              <h2 className="text-base font-semibold text-slate-100">{tr('vault.knowledge')}</h2>
             </div>
 
             <div className="relative w-full sm:w-64">
               <Search className="pointer-events-none absolute right-3 top-2.5 h-3.5 w-3.5 text-slate-500" aria-hidden="true" />
-              <label htmlFor="vault-search" className="sr-only">بحث في الخبرات الهندسية</label>
+              <label htmlFor="vault-search" className="sr-only">{tr('vault.searchAria')}</label>
               <input
                 id="vault-search"
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="ابحث في القواعد الهندسية..."
+                placeholder={tr('vault.searchPlaceholder')}
                 className="w-full rounded-lg border border-slate-700 bg-slate-950 py-1.5 pr-8 pl-3 text-xs text-slate-100 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none"
               />
             </div>
@@ -196,41 +201,41 @@ export const VaultView: React.FC<VaultViewProps> = ({
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label htmlFor="vault-domain" className="block text-xs text-slate-400 mb-1">
-                  المجال التقني
+                  {tr('vault.domain')}
                 </label>
                 <input
                   id="vault-domain"
                   type="text"
                   value={domain}
                   onChange={(e) => setDomain(e.target.value)}
-                  placeholder="مثال: SQLite & Concurrency"
+                  placeholder={tr('vault.domainPlaceholder')}
                   className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-100 focus:border-cyan-500 focus:outline-none"
                 />
               </div>
               <div>
                 <label htmlFor="vault-pattern" className="block text-xs text-slate-400 mb-1">
-                  النمط الهندسي
+                  {tr('vault.pattern')}
                 </label>
                 <input
                   id="vault-pattern"
                   type="text"
                   value={pattern}
                   onChange={(e) => setPattern(e.target.value)}
-                  placeholder="مثال: Parameterized Migrations"
+                  placeholder={tr('vault.patternPlaceholder')}
                   className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-100 focus:border-cyan-500 focus:outline-none"
                 />
               </div>
             </div>
             <div>
               <label htmlFor="vault-wisdom" className="block text-xs text-slate-400 mb-1">
-                الخبرة المُتحقّقة (تُحقن تلقائياً في مرحلة التفكير المعماري)
+                {tr('vault.wisdom')}
               </label>
               <textarea
                 id="vault-wisdom"
                 rows={2}
                 value={wisdom}
                 onChange={(e) => setWisdom(e.target.value)}
-                placeholder="صف القاعدة الهندسية التي يجب فرضها في المشاريع القادمة..."
+                placeholder={tr('vault.wisdomPlaceholder')}
                 className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-100 focus:border-cyan-500 focus:outline-none"
               />
             </div>
@@ -240,14 +245,14 @@ export const VaultView: React.FC<VaultViewProps> = ({
               disabled={busy}
               className="rounded-lg bg-cyan-500 px-4 py-1.5 text-xs font-semibold text-slate-950 hover:bg-cyan-400 disabled:opacity-50 cursor-pointer"
             >
-              {busy ? 'جاري الحفظ...' : 'إضافة قاعدة إلى الخزينة'}
+              {busy ? tr('vault.saving') : tr('vault.add')}
             </button>
           </form>
 
           <div className="space-y-2.5">
             {filteredVault.length === 0 ? (
               <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-6 text-center text-xs text-slate-400">
-                لا توجد قواعد مطابقة لبحثك.
+                {tr('vault.noMatches')}
               </div>
             ) : (
               filteredVault.map((entry) => (
@@ -267,7 +272,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
                   <button
                     type="button"
                     onClick={() => void onDeleteVaultRule(entry.id)}
-                    aria-label={`حذف قاعدة ${entry.pattern}`}
+                    aria-label={tr('vault.deleteAria', { pattern: entry.pattern })}
                     className="rounded-md p-1.5 text-slate-500 hover:bg-slate-800 hover:text-rose-400 cursor-pointer shrink-0"
                   >
                     <Trash2 className="h-4 w-4" aria-hidden="true" />
@@ -282,13 +287,13 @@ export const VaultView: React.FC<VaultViewProps> = ({
         <div className="lg:col-span-5 space-y-4">
           <div className="flex items-center gap-2">
             <Brain className="h-4 w-4 text-sky-400" aria-hidden="true" />
-            <h2 className="text-base font-semibold text-slate-100">الملف المعرفي وسجل الحوار</h2>
+            <h2 className="text-base font-semibold text-slate-100">{tr('vault.profileTitle')}</h2>
           </div>
 
           <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-4 space-y-3">
-            <h3 className="text-xs font-semibold text-slate-300">السمات الهندسية المكتشفة من الحوار</h3>
+            <h3 className="text-xs font-semibold text-slate-300">{tr('vault.traits')}</h3>
             {traitEntries.length === 0 ? (
-              <p className="text-xs text-slate-500">لم يتم تسجيل تفضيلات شخصية بعد.</p>
+              <p className="text-xs text-slate-500">{tr('vault.noTraits')}</p>
             ) : (
               <ul className="space-y-2 text-xs">
                 {traitEntries.map(([k, v]) => (
@@ -307,7 +312,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
           </div>
 
           <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-4 space-y-3">
-            <h3 className="text-xs font-semibold text-slate-300">آخر جولات الحوار الصوتي</h3>
+            <h3 className="text-xs font-semibold text-slate-300">{tr('vault.dialogue')}</h3>
             <div className="max-h-80 space-y-2.5 overflow-y-auto pl-1">
               {cognitive.recentDialogue.slice(-8).map((turn) => (
                 <div
@@ -320,10 +325,10 @@ export const VaultView: React.FC<VaultViewProps> = ({
                 >
                   <div className="mb-1 flex items-center justify-between text-[11px] text-slate-400">
                     <span className="font-semibold">
-                      {turn.role === 'user' ? 'أنت' : 'جينيسيس'}
+                      {turn.role === 'user' ? tr('vault.you') : tr('vault.genesis')}
                     </span>
                     <span className="font-mono tabular-nums">
-                      {new Date(turn.createdAt).toLocaleTimeString('ar-EG')}
+                      {new Date(turn.createdAt).toLocaleTimeString(language === 'ar' ? 'ar-EG' : 'en-GB')}
                     </span>
                   </div>
                   <p>{turn.content}</p>

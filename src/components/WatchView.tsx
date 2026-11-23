@@ -1,8 +1,10 @@
+import { t, type Language } from '../lib/i18n';
 import React, { useState } from 'react';
 import { FolderSearch, Pause, Play, RefreshCw, Trash2 } from 'lucide-react';
 import type { WatchFolder } from '../lib/types';
 
 interface WatchViewProps {
+  language: Language;
   watches: WatchFolder[];
   onAddWatch: (payload: { folderPath: string; goal: string; intervalSec: number }) => Promise<void>;
   onToggleWatch: (id: number) => Promise<void>;
@@ -16,7 +18,10 @@ export const WatchView: React.FC<WatchViewProps> = ({
   onToggleWatch,
   onScanAll,
   onDeleteWatch,
-}) => {
+
+  language,}) => {
+  const tr = (key: Parameters<typeof t>[1], vars?: Record<string, string | number>) => t(language, key, vars);
+
   const [folderPath, setFolderPath] = useState('');
   const [goal, setGoal] = useState('');
   const [intervalSec, setIntervalSec] = useState(30);
@@ -26,7 +31,7 @@ export const WatchView: React.FC<WatchViewProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!folderPath.trim() || !goal.trim()) {
-      setError('يرجى إدخال مسار المجلد وهدف المراقبة.');
+      setError(tr('watch.needFields'));
       return;
     }
     setError(null);
@@ -40,7 +45,7 @@ export const WatchView: React.FC<WatchViewProps> = ({
       setFolderPath('');
       setGoal('');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'تعذر إضافة المجلد للمراقبة.');
+      setError(err instanceof Error ? err.message : tr('watch.addError'));
     } finally {
       setBusy(false);
     }
@@ -50,9 +55,9 @@ export const WatchView: React.FC<WatchViewProps> = ({
     <div className="mx-auto max-w-[1440px] px-4 py-6 sm:px-6 space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
         <div>
-          <h1 className="text-xl font-bold text-slate-100">مراقبة المجلدات والتدقيق التلقائي</h1>
+          <h1 className="text-xl font-bold text-slate-100">{tr('watch.title')}</h1>
           <p className="mt-1 text-sm text-slate-400">
-            رصد مستمر للتغييرات البرمجية في مسارات العمل وإعادة حساب SBOM والأمان تلقائياً.
+            {tr('watch.subtitle')}
           </p>
         </div>
 
@@ -62,7 +67,7 @@ export const WatchView: React.FC<WatchViewProps> = ({
           className="inline-flex items-center gap-2 rounded-lg bg-cyan-500 px-4 py-2 text-xs font-semibold text-slate-950 hover:bg-cyan-400 whitespace-nowrap shrink-0 cursor-pointer"
         >
           <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
-          <span>فحص جميع المجلدات الآن</span>
+          <span>{tr('watch.scanAll')}</span>
         </button>
       </div>
 
@@ -72,11 +77,11 @@ export const WatchView: React.FC<WatchViewProps> = ({
           onSubmit={(e) => void handleSubmit(e)}
           className="lg:col-span-4 rounded-xl border border-slate-800 bg-slate-900/70 p-5 space-y-4 h-fit"
         >
-          <h2 className="text-sm font-semibold text-slate-100">إضافة مسار مراقبة جديد</h2>
+          <h2 className="text-sm font-semibold text-slate-100">{tr('watch.add')}</h2>
 
           <div>
             <label htmlFor="watch-folder-path" className="block text-xs font-medium text-slate-300 mb-1.5">
-              مسار المجلد المحلي
+              {tr('watch.path')}
             </label>
             <input
               id="watch-folder-path"
@@ -91,21 +96,21 @@ export const WatchView: React.FC<WatchViewProps> = ({
 
           <div>
             <label htmlFor="watch-folder-goal" className="block text-xs font-medium text-slate-300 mb-1.5">
-              هدف التدقيق التلقائي
+              {tr('watch.goal')}
             </label>
             <input
               id="watch-folder-goal"
               type="text"
               value={goal}
               onChange={(e) => setGoal(e.target.value)}
-              placeholder="مثال: فحص الأسرار وتوليد SBOM عند كل تعديل"
+              placeholder={tr('watch.goalPlaceholder')}
               className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-100 placeholder:text-slate-600 focus:border-cyan-500 focus:outline-none"
             />
           </div>
 
           <div>
             <label htmlFor="watch-interval" className="block text-xs font-medium text-slate-300 mb-1.5">
-              فترة الفحص (ثانية)
+              {tr('watch.interval')}
             </label>
             <input
               id="watch-interval"
@@ -125,7 +130,7 @@ export const WatchView: React.FC<WatchViewProps> = ({
             disabled={busy}
             className="w-full rounded-lg bg-slate-100 px-4 py-2 text-xs font-semibold text-slate-950 hover:bg-white disabled:opacity-50 cursor-pointer"
           >
-            {busy ? 'جاري الإضافة...' : 'تفعيل المراقبة'}
+            {busy ? tr('watch.adding') : tr('watch.enable')}
           </button>
         </form>
 
@@ -134,8 +139,8 @@ export const WatchView: React.FC<WatchViewProps> = ({
           {watches.length === 0 ? (
             <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-10 text-center">
               <FolderSearch className="mx-auto h-8 w-8 text-slate-500 mb-2" aria-hidden="true" />
-              <p className="text-sm text-slate-300">لا توجد مجلدات مراقبة مضافة بعد.</p>
-              <p className="mt-1 text-xs text-slate-500">أضف مسار مشروع من النموذج المجاور لبدء التدقيق المستمر.</p>
+              <p className="text-sm text-slate-300">{tr('watch.none')}</p>
+              <p className="mt-1 text-xs text-slate-500">{tr('watch.hint')}</p>
             </div>
           ) : (
             watches.map((w) => (
@@ -150,29 +155,29 @@ export const WatchView: React.FC<WatchViewProps> = ({
                     </span>
                     <span aria-hidden="true" className="text-slate-600">·</span>
                     <span className={`text-xs font-medium ${w.enabled ? 'text-emerald-400' : 'text-amber-400'}`}>
-                      {w.enabled ? 'نشط' : 'متوقف مؤقتاً'}
+                      {w.enabled ? tr('watch.active') : tr('watch.paused')}
                     </span>
                   </div>
                   <p className="text-xs text-slate-400">{w.goal}</p>
                   <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 tabular-nums">
-                    <span>{w.filesCount} ملف مرصود</span>
+                    <span>{w.filesCount} {tr('watch.watchedFile')}</span>
                     <span aria-hidden="true">·</span>
-                    <span>كل {w.intervalSec} ثانية</span>
+                    <span>{tr('watch.every', { n: w.intervalSec })}</span>
                     <span aria-hidden="true">·</span>
                     <span>
-                      آخر فحص: {w.lastCheckedAt ? new Date(w.lastCheckedAt).toLocaleTimeString('ar-EG') : 'لم يبدأ'}
+                      {tr('watch.lastScan')}  {w.lastCheckedAt ? new Date(w.lastCheckedAt).toLocaleTimeString(language === 'ar' ? 'ar-EG' : 'en-GB') : tr('watch.never')}
                     </span>
                     {w.lastTriggeredProjectId && (
                       <>
                         <span aria-hidden="true">·</span>
-                        <span className="text-cyan-400">تدقيق مرتبط #{w.lastTriggeredProjectId}</span>
+                        <span className="text-cyan-400">{tr('watch.linkedAudit', { n: w.lastTriggeredProjectId })}</span>
                       </>
                     )}
                     {w.changedFiles && w.changedFiles.length > 0 && (
                       <>
                         <span aria-hidden="true">·</span>
                         <span className="text-amber-300" dir="ltr">
-                          تغييرات: {w.changedFiles.slice(0, 3).join(', ')}
+                          {tr('watch.changes')}  {w.changedFiles.slice(0, 3).join(', ')}
                         </span>
                       </>
                     )}
@@ -183,27 +188,27 @@ export const WatchView: React.FC<WatchViewProps> = ({
                   <button
                     type="button"
                     onClick={() => void onToggleWatch(w.id)}
-                    aria-label={w.enabled ? `إيقاف مراقبة ${w.folderPath}` : `تفعيل مراقبة ${w.folderPath}`}
+                    aria-label={w.enabled ? tr('watch.stopAria', { path: w.folderPath }) : tr('watch.startAria', { path: w.folderPath })}
                     className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-1.5 text-xs text-slate-200 hover:border-slate-600 whitespace-nowrap cursor-pointer"
                   >
                     {w.enabled ? <Pause className="h-3.5 w-3.5" aria-hidden="true" /> : <Play className="h-3.5 w-3.5" aria-hidden="true" />}
-                    <span>{w.enabled ? 'إيقاف' : 'تشغيل'}</span>
+                    <span>{w.enabled ? tr('hud.stop') : tr('watch.start')}</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => void onScanAll(w.id)}
-                    aria-label={`فحص فوري للمسار ${w.folderPath}`}
+                    aria-label={tr('watch.scanAria', { path: w.folderPath })}
                     className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-1.5 text-xs text-cyan-300 hover:border-cyan-500/50 whitespace-nowrap cursor-pointer"
                   >
                     <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
-                    <span>فحص</span>
+                    <span>{tr('watch.scan')}</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => void onDeleteWatch(w.id)}
-                    aria-label={`حذف مراقبة ${w.folderPath}`}
+                    aria-label={tr('watch.deleteAria', { path: w.folderPath })}
                     className="inline-flex items-center justify-center rounded-lg border border-slate-800 bg-slate-950 p-1.5 text-slate-400 hover:text-rose-400 cursor-pointer"
                   >
                     <Trash2 className="h-4 w-4" aria-hidden="true" />

@@ -1,3 +1,4 @@
+import { t, type Language } from '../lib/i18n';
 import React, { useMemo, useState } from 'react';
 import {
   Activity,
@@ -36,6 +37,7 @@ import type {
 import { ExportModal } from './ExportModal';
 
 interface StudioViewProps {
+  language: Language;
   projects: ProjectRecord[];
   activeProjectId: number | null;
   activeTab: DetailTab;
@@ -70,27 +72,7 @@ interface StudioViewProps {
   onRefreshProjects: () => Promise<void>;
 }
 
-const PIPELINE_STAGES = [
-  '1. المعماري',
-  '2. التوليد',
-  '3. الاختبارات',
-  '4. الأمان و SBOM',
-  '5. الهجوم العدائي',
-  '6. جاهز للإنتاج',
-];
 
-const DETAIL_TABS: Array<{ id: DetailTab; label: string; icon: React.ReactNode }> = [
-  { id: 'logs', label: 'السجل الحي', icon: <Terminal className="h-3.5 w-3.5" aria-hidden="true" /> },
-  { id: 'sandbox', label: 'المعزول', icon: <Play className="h-3.5 w-3.5" aria-hidden="true" /> },
-  { id: 'benchmark', label: 'الأداء', icon: <Gauge className="h-3.5 w-3.5" aria-hidden="true" /> },
-  { id: 'sbom', label: 'SBOM والأمان', icon: <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" /> },
-  { id: 'diagrams', label: 'المخططات', icon: <Activity className="h-3.5 w-3.5" aria-hidden="true" /> },
-  { id: 'docker', label: 'Docker', icon: <Container className="h-3.5 w-3.5" aria-hidden="true" /> },
-  { id: 'files', label: 'الملفات', icon: <Code2 className="h-3.5 w-3.5" aria-hidden="true" /> },
-  { id: 'diffs', label: 'الفروقات', icon: <FileDiff className="h-3.5 w-3.5" aria-hidden="true" /> },
-  { id: 'report', label: 'التقرير', icon: <FileText className="h-3.5 w-3.5" aria-hidden="true" /> },
-  { id: 'healing', label: 'الإصلاح الذاتي', icon: <HeartPulse className="h-3.5 w-3.5" aria-hidden="true" /> },
-];
 
 export const StudioView: React.FC<StudioViewProps> = ({
   projects,
@@ -114,7 +96,32 @@ export const StudioView: React.FC<StudioViewProps> = ({
   onHealProject,
   onAiSynthesize,
   onRefreshProjects,
-}) => {
+
+  language,}) => {
+  const tr = (key: Parameters<typeof t>[1], vars?: Record<string, string | number>) => t(language, key, vars);
+
+const PIPELINE_STAGES = [
+  tr('st.stage1'),
+  tr('st.stage2'),
+  tr('st.stage3'),
+  tr('st.stage4'),
+  tr('st.stage5'),
+  tr('st.stage6'),
+];
+
+const DETAIL_TABS: Array<{ id: DetailTab; label: string; icon: React.ReactNode }> = [
+  { id: 'logs', label: tr('st.tabLogs'), icon: <Terminal className="h-3.5 w-3.5" aria-hidden="true" /> },
+  { id: 'sandbox', label: tr('st.tabSandbox'), icon: <Play className="h-3.5 w-3.5" aria-hidden="true" /> },
+  { id: 'benchmark', label: tr('st.tabPerf'), icon: <Gauge className="h-3.5 w-3.5" aria-hidden="true" /> },
+  { id: 'sbom', label: tr('st.tabSbom'), icon: <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" /> },
+  { id: 'diagrams', label: tr('st.tabDiagrams'), icon: <Activity className="h-3.5 w-3.5" aria-hidden="true" /> },
+  { id: 'docker', label: tr('st.tabDocker'), icon: <Container className="h-3.5 w-3.5" aria-hidden="true" /> },
+  { id: 'files', label: tr('st.tabFiles'), icon: <Code2 className="h-3.5 w-3.5" aria-hidden="true" /> },
+  { id: 'diffs', label: tr('st.tabDiffs'), icon: <FileDiff className="h-3.5 w-3.5" aria-hidden="true" /> },
+  { id: 'report', label: tr('st.tabReport'), icon: <FileText className="h-3.5 w-3.5" aria-hidden="true" /> },
+  { id: 'healing', label: tr('st.tabHealing'), icon: <HeartPulse className="h-3.5 w-3.5" aria-hidden="true" /> },
+];
+
   const [submitMode, setSubmitMode] = useState<'new' | 'audit'>('new');
   const [title, setTitle] = useState('');
   const [prompt, setPrompt] = useState('');
@@ -204,7 +211,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
 
     if (submitMode === 'new') {
       if (title.trim().length < 2 || prompt.trim().length < 5) {
-        setFormError('يرجى إدخال عنوان المشروع والوصف الهندسي الكامل.');
+        setFormError(tr('st.needFields'));
         return;
       }
       setSubmitting(true);
@@ -220,20 +227,20 @@ export const StudioView: React.FC<StudioViewProps> = ({
         setPrompt('');
         onToggleCreateForm(false);
       } catch (err) {
-        setFormError(err instanceof Error ? err.message : 'تعذر بناء المشروع.');
+        setFormError(err instanceof Error ? err.message : tr('st.buildError'));
       } finally {
         setSubmitting(false);
       }
     } else {
       if (!zipBase64) {
-        setFormError('يرجى اختيار ملف ZIP لفحصه وتدقيقه.');
+        setFormError(tr('st.needZip'));
         return;
       }
       setSubmitting(true);
       try {
         await onUploadZipProject({
-          title: title.trim() || zipFilename || 'مشروع مدقق من أرشيف ZIP',
-          prompt: prompt.trim() || 'فحص أمني وتوليد SBOM والمخططات للحزمة المرفوعة.',
+          title: title.trim() || zipFilename || tr('st.auditedZip'),
+          prompt: prompt.trim() || tr('st.auditPrompt'),
           zipBase64,
           modelOverrides: Object.keys(modelOverrides).length > 0 ? modelOverrides : undefined,
         });
@@ -243,7 +250,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
         setZipFilename('');
         onToggleCreateForm(false);
       } catch (err) {
-        setFormError(err instanceof Error ? err.message : 'فشل تحليل الأرشيف.');
+        setFormError(err instanceof Error ? err.message : tr('st.zipError'));
       } finally {
         setSubmitting(false);
       }
@@ -297,7 +304,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
         <aside className="lg:col-span-4 space-y-4">
           {showCreateForm && (
             <section
-              aria-label="إنشاء أو تدقيق مشروع"
+              aria-label={tr('st.formAria')}
               className="rounded-xl border border-slate-700 bg-slate-900 p-4 space-y-4"
             >
               <div className="flex items-center justify-between border-b border-slate-800 pb-3">
@@ -309,7 +316,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                       submitMode === 'new' ? 'bg-slate-800 text-cyan-300' : 'text-slate-400 hover:text-slate-200'
                     }`}
                   >
-                    بناء مشروع جديد
+                    {tr('st.newBuild')}
                   </button>
                   <button
                     type="button"
@@ -318,7 +325,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                       submitMode === 'audit' ? 'bg-slate-800 text-cyan-300' : 'text-slate-400 hover:text-slate-200'
                     }`}
                   >
-                    تدقيق أرشيف ZIP
+                    {tr('st.auditZip')}
                   </button>
                 </div>
 
@@ -327,14 +334,14 @@ export const StudioView: React.FC<StudioViewProps> = ({
                   onClick={() => onToggleCreateForm(false)}
                   className="text-xs text-slate-400 hover:text-slate-200 cursor-pointer"
                 >
-                  إغلاق
+                  {tr('st.close')}
                 </button>
               </div>
 
               {submitMode === 'new' && (
                 <div>
                   <label htmlFor="template-select" className="block text-xs text-slate-400 mb-1">
-                    قوالب هندسية جاهزة (اختياري)
+                    {tr('st.templates')}
                   </label>
                   <select
                     id="template-select"
@@ -349,7 +356,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                     }}
                     className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-200 focus:border-cyan-500 focus:outline-none"
                   >
-                    <option value="">اختر قالباً لتعبئة الحقول تلقائياً...</option>
+                    <option value="">{tr('st.chooseTemplate')}</option>
                     {PROJECT_TEMPLATES.map((tpl) => (
                       <option key={tpl.id} value={tpl.id}>
                         {tpl.name}
@@ -362,14 +369,14 @@ export const StudioView: React.FC<StudioViewProps> = ({
               <form onSubmit={(e) => void handleCreateSubmit(e)} className="space-y-3">
                 <div>
                   <label htmlFor="proj-title" className="block text-xs text-slate-300 mb-1">
-                    اسم المشروع
+                    {tr('st.projectName')}
                   </label>
                   <input
                     id="proj-title"
                     type="text"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    placeholder="مثال: منصة إدارة الطلبات والفواتير"
+                    placeholder={tr('st.namePlaceholder')}
                     className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-100 placeholder:text-slate-600 focus:border-cyan-500 focus:outline-none"
                   />
                 </div>
@@ -377,7 +384,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                 {submitMode === 'new' ? (
                   <div>
                     <label htmlFor="proj-eco" className="block text-xs text-slate-300 mb-1">
-                      البيئة واللغة البرمجية (18 بيئة)
+                      {tr('st.ecosystem')}
                     </label>
                     <select
                       id="proj-eco"
@@ -385,7 +392,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                       onChange={(e) => setEcosystem(e.target.value)}
                       className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-100 focus:border-cyan-500 focus:outline-none"
                     >
-                      <option value="auto">اكتشاف ذكي تلقائي من الوصف</option>
+                      <option value="auto">{tr('st.autoDetect')}</option>
                       {Object.values(ECOSYSTEM_CATALOG).map((eco) => (
                         <option key={eco.key} value={eco.key}>
                           {eco.displayName}
@@ -396,14 +403,14 @@ export const StudioView: React.FC<StudioViewProps> = ({
                 ) : (
                   <div>
                     <label htmlFor="zip-upload" className="block text-xs text-slate-300 mb-1">
-                      ملف المشروع المضغوط (.zip)
+                      {tr('st.zipFile')}
                     </label>
                     <label
                       htmlFor="zip-upload"
                       className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-slate-700 bg-slate-950 px-3 py-4 text-xs text-slate-300 hover:border-cyan-500"
                     >
                       <Upload className="h-4 w-4 text-cyan-400" aria-hidden="true" />
-                      <span>{zipFilename || 'اختر أرشيف ZIP للفحص وتوليد SBOM'}</span>
+                      <span>{zipFilename || tr('st.zipPlaceholder')}</span>
                     </label>
                     <input
                       id="zip-upload"
@@ -417,14 +424,14 @@ export const StudioView: React.FC<StudioViewProps> = ({
 
                 <div>
                   <label htmlFor="proj-prompt" className="block text-xs text-slate-300 mb-1">
-                    المواصفات الهندسية المطلوبة
+                    {tr('st.specs')}
                   </label>
                   <textarea
                     id="proj-prompt"
                     rows={3}
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
-                    placeholder="صف الوظائف، نقاط النهاية، قاعدة البيانات، ومتطلبات الأمان..."
+                    placeholder={tr('st.specsPlaceholder')}
                     className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-100 placeholder:text-slate-600 focus:border-cyan-500 focus:outline-none"
                   />
                 </div>
@@ -437,7 +444,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                     onChange={(e) => setUseNeural(e.target.checked)}
                     className="h-3.5 w-3.5 accent-cyan-500"
                   />
-                  <span>تفعيل التوليد العصبي (نماذج Ollama المحلية أو Gemini حسب التوزيع)</span>
+                  <span>{tr('st.neuralToggle')}</span>
                 </label>
 
                 {/* Collapsible Asymmetric Model Routing Selector */}
@@ -450,10 +457,10 @@ export const StudioView: React.FC<StudioViewProps> = ({
                   >
                     <span className="inline-flex items-center gap-1.5 font-medium">
                       <SlidersHorizontal className="h-3.5 w-3.5 text-cyan-400" aria-hidden="true" />
-                      <span>توزيع النماذج غير المتماثل (Asymmetric Routing)</span>
+                      <span>{tr('st.routing')}</span>
                     </span>
                     <span className="text-[11px] text-slate-400">
-                      {showRoutingPanel ? 'إخفاء' : 'تخصيص 6 أدوار'}
+                      {showRoutingPanel ? tr('st.hide') : tr('st.customizeRoles')}
                     </span>
                   </button>
 
@@ -478,7 +485,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                             >
                               {availableModels.map((opt) => (
                                 <option key={opt.id} value={opt.id}>
-                                  {opt.installed ? '✓ ' : ''}{opt.id} — {opt.group === 'local' ? 'محلي' : 'سحابي'} · {opt.tier}
+                                  {opt.installed ? '✓ ' : ''}{opt.id} — {opt.group === 'local' ? tr('st.local') : tr('st.cloud')} · {opt.tier}
                                 </option>
                               ))}
                             </select>
@@ -486,7 +493,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                         );
                       })}
                       <p className="pt-1 text-[10px] leading-relaxed text-slate-500">
-                        النماذج المحلية المثبّتة تظهر بعلامة ✓. اختيار نموذج محلي لـ «البنّاء الأساسي» يشغّل توليد Ollama فعلياً بدون إنترنت؛ التحقق النهائي يبقى على نظام التشغيل.
+                        {tr('st.localHint')}
                       </p>
                     </div>
                   )}
@@ -500,10 +507,10 @@ export const StudioView: React.FC<StudioViewProps> = ({
                   className="w-full rounded-lg bg-cyan-500 px-4 py-2 text-xs font-semibold text-slate-950 hover:bg-cyan-400 disabled:opacity-50 cursor-pointer"
                 >
                   {submitting
-                    ? 'جاري التنفيذ عبر خط الإنتاج...'
+                    ? tr('st.launching')
                     : submitMode === 'new'
-                      ? 'إطلاق خط الإنتاج الآن'
-                      : 'بدء التدقيق وفحص الثغرات'}
+                      ? tr('st.launch')
+                      : tr('st.startAudit')}
                 </button>
               </form>
             </section>
@@ -512,22 +519,22 @@ export const StudioView: React.FC<StudioViewProps> = ({
           {/* Project Queue List */}
           <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-4 space-y-3">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-slate-100">قائمة المشاريع وخط الإنتاج</h2>
+              <h2 className="text-sm font-semibold text-slate-100">{tr('st.queue')}</h2>
               <span className="font-mono text-xs text-slate-400 tabular-nums">
-                {projects.length} مشاريع
+                {projects.length} {tr('st.projectsSuffix')}
               </span>
             </div>
 
             {projects.length === 0 ? (
               <div className="rounded-lg border border-dashed border-slate-800 p-6 text-center">
                 <FolderGit2 className="mx-auto h-7 w-7 text-slate-500 mb-2" aria-hidden="true" />
-                <p className="text-xs text-slate-300">لا توجد مشاريع في خط الإنتاج بعد.</p>
+                <p className="text-xs text-slate-300">{tr('st.noProjects')}</p>
                 <button
                   type="button"
                   onClick={() => onToggleCreateForm(true)}
                   className="mt-3 rounded-lg bg-cyan-500 px-3 py-1.5 text-xs font-semibold text-slate-950 hover:bg-cyan-400 cursor-pointer"
                 >
-                  إنشاء أول مشروع
+                  {tr('st.createFirst')}
                 </button>
               </div>
             ) : (
@@ -555,12 +562,12 @@ export const StudioView: React.FC<StudioViewProps> = ({
                         </div>
                         <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-slate-400">
                           <span className={proj.status === 'verified' ? 'text-emerald-400' : 'text-amber-400'}>
-                            {proj.status === 'verified' ? 'مُتحقّق' : 'يحتاج مراجعة'}
+                            {proj.status === 'verified' ? tr('st.verified') : tr('st.needsReview')}
                           </span>
                           <span aria-hidden="true">·</span>
                           <span className="truncate max-w-[180px]">{proj.ecosystemKey}</span>
                           <span aria-hidden="true">·</span>
-                          <span className="tabular-nums">{proj.testsRun} اختبار</span>
+                          <span className="tabular-nums">{proj.testsRun} {tr('st.testsSuffix')}</span>
                         </div>
                       </button>
                     </li>
@@ -575,7 +582,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
         <main className="lg:col-span-8 space-y-4">
           {!activeProject ? (
             <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-12 text-center text-sm text-slate-400">
-              اختر مشروعاً من القائمة أو أنشئ مشروعاً جديداً لعرض خط الإنتاج والملفات.
+              {tr('st.selectHint')}
             </div>
           ) : (
             <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-5 space-y-5">
@@ -590,10 +597,10 @@ export const StudioView: React.FC<StudioViewProps> = ({
                     <span aria-hidden="true">·</span>
                     <span>{activeProject.language}</span>
                     <span aria-hidden="true">·</span>
-                    <span className="text-cyan-400 font-semibold">التقييم {activeProject.score}/100</span>
+                    <span className="text-cyan-400 font-semibold">{tr('st.scoreWith', { score: activeProject.score })}</span>
                     <span aria-hidden="true">·</span>
                     <span className={activeProject.redTeamStatus === 'survived' ? 'text-emerald-400' : 'text-rose-400'}>
-                      Red-Team: {activeProject.redTeamStatus === 'survived' ? 'صامد' : 'مخترق'}
+                      Red-Team: {activeProject.redTeamStatus === 'survived' ? tr('st.survived') : tr('st.breached')}
                     </span>
                     {activeProject.verification && (
                       <>
@@ -619,7 +626,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                       className="inline-flex items-center gap-1.5 rounded-lg border border-amber-500/50 bg-amber-500/15 px-3 py-1.5 text-xs font-medium text-amber-300 hover:bg-amber-500/25 whitespace-nowrap cursor-pointer"
                     >
                       <Square className="h-3.5 w-3.5" aria-hidden="true" />
-                      <span>إيقاف المعزول</span>
+                      <span>{tr('st.stopSandbox')}</span>
                     </button>
                   ) : (
                     <button
@@ -628,7 +635,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                       className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-slate-950 hover:bg-emerald-400 whitespace-nowrap cursor-pointer"
                     >
                       <Play className="h-3.5 w-3.5" aria-hidden="true" />
-                      <span>تشغيل المعزول</span>
+                      <span>{tr('st.startSandbox')}</span>
                     </button>
                   )}
 
@@ -646,7 +653,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                     className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-950 px-3 py-1.5 text-xs text-slate-200 hover:border-cyan-500/50 whitespace-nowrap cursor-pointer"
                   >
                     <Gauge className="h-3.5 w-3.5 text-cyan-400" aria-hidden="true" />
-                    <span>{actionBusy === 'bench' ? 'جاري القياس...' : 'اختبار الضغط'}</span>
+                    <span>{actionBusy === 'bench' ? tr('st.benching') : tr('st.benchmark')}</span>
                   </button>
 
                   <a
@@ -663,7 +670,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                     className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-950 px-3 py-1.5 text-xs text-slate-200 hover:border-cyan-500/60 whitespace-nowrap cursor-pointer"
                   >
                     <Share2 className="h-3.5 w-3.5 text-cyan-400" aria-hidden="true" />
-                    <span>تصدير ونشر</span>
+                    <span>{tr('st.exportPublish')}</span>
                   </button>
 
                   <a
@@ -673,7 +680,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                     className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-950 px-3 py-1.5 text-xs text-slate-200 hover:border-slate-500 whitespace-nowrap"
                   >
                     <Printer className="h-3.5 w-3.5" aria-hidden="true" />
-                    <span>تقرير HTML</span>
+                    <span>{tr('st.htmlReport')}</span>
                   </a>
 
                   <a
@@ -683,7 +690,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                     className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-700 bg-slate-950 px-3 py-1.5 text-xs text-cyan-200 hover:border-cyan-400 whitespace-nowrap"
                   >
                     <Printer className="h-3.5 w-3.5" aria-hidden="true" />
-                    <span>حفظ PDF</span>
+                    <span>{tr('st.savePdf')}</span>
                   </a>
 
                   <button
@@ -694,9 +701,9 @@ export const StudioView: React.FC<StudioViewProps> = ({
                       setHeaderNotice(null);
                       try {
                         await onVerifyProject(activeProject.id);
-                        setHeaderNotice({ ok: true, text: 'تم إعادة تشغيل الاختبارات الفعلية على القرص بنجاح.' });
+                        setHeaderNotice({ ok: true, text: tr('st.verifyOk') });
                       } catch (err) {
-                        setHeaderNotice({ ok: false, text: err instanceof Error ? err.message : 'فشل الفحص.' });
+                        setHeaderNotice({ ok: false, text: err instanceof Error ? err.message : tr('st.verifyFail') });
                       } finally {
                         setActionBusy(null);
                       }
@@ -704,7 +711,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                     className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-950 px-3 py-1.5 text-xs text-slate-200 hover:border-emerald-500/50 whitespace-nowrap cursor-pointer"
                   >
                     <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" aria-hidden="true" />
-                    <span>{actionBusy === 'verify' ? 'جاري الفحص...' : 'فحص فعلي'}</span>
+                    <span>{actionBusy === 'verify' ? tr('st.checking') : tr('st.realVerify')}</span>
                   </button>
 
                   <button
@@ -720,7 +727,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                       } catch (err) {
                         setHeaderNotice({
                           ok: false,
-                          text: err instanceof Error ? err.message : 'تعذر تشغيل وكيل الإصلاح الذاتي.',
+                          text: err instanceof Error ? err.message : tr('st.healError'),
                         });
                       } finally {
                         setActionBusy(null);
@@ -729,7 +736,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                     className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs text-emerald-200 hover:border-emerald-400 whitespace-nowrap cursor-pointer"
                   >
                     <HeartPulse className="h-3.5 w-3.5 text-emerald-300" aria-hidden="true" />
-                    <span>{actionBusy === 'heal' ? 'جاري الإصلاح...' : 'إصلاح ذاتي'}</span>
+                    <span>{actionBusy === 'heal' ? tr('st.healingBusy') : tr('st.selfHeal')}</span>
                   </button>
 
                   <button
@@ -740,11 +747,11 @@ export const StudioView: React.FC<StudioViewProps> = ({
                       setHeaderNotice(null);
                       try {
                         await onAiSynthesize(activeProject.id);
-                        setHeaderNotice({ ok: true, text: 'تم تطوير وتحسين الملفات عبر Gemini AI وإعادة التحقق بنجاح.' });
+                        setHeaderNotice({ ok: true, text: tr('st.geminiOk') });
                       } catch (err) {
                         setHeaderNotice({
                           ok: false,
-                          text: err instanceof Error ? err.message : 'تعذر تشغيل التطوير الذكي عبر Gemini.',
+                          text: err instanceof Error ? err.message : tr('st.geminiError'),
                         });
                       } finally {
                         setActionBusy(null);
@@ -753,13 +760,13 @@ export const StudioView: React.FC<StudioViewProps> = ({
                     className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-500/40 bg-indigo-500/10 px-3 py-1.5 text-xs text-indigo-200 hover:border-indigo-400 whitespace-nowrap cursor-pointer"
                   >
                     <Sparkles className="h-3.5 w-3.5 text-indigo-300" aria-hidden="true" />
-                    <span>{actionBusy === 'ai-synth' ? 'جاري التطوير...' : 'تطوير Gemini AI'}</span>
+                    <span>{actionBusy === 'ai-synth' ? tr('st.enhancing') : tr('st.geminiEnhance')}</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => void onRetryProject(activeProject.id)}
-                    aria-label="إعادة تنفيذ التدقيق"
+                    aria-label={tr('st.retryAria')}
                     className="inline-flex items-center justify-center rounded-lg border border-slate-800 bg-slate-950 p-1.5 text-slate-400 hover:text-cyan-300 cursor-pointer"
                   >
                     <RefreshCw className="h-4 w-4" aria-hidden="true" />
@@ -768,7 +775,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                   <button
                     type="button"
                     onClick={() => void onDeleteProject(activeProject.id)}
-                    aria-label={`حذف مشروع ${activeProject.title}`}
+                    aria-label={tr('st.deleteAria', { title: activeProject.title })}
                     className="inline-flex items-center justify-center rounded-lg border border-slate-800 bg-slate-950 p-1.5 text-slate-400 hover:text-rose-400 cursor-pointer"
                   >
                     <Trash2 className="h-4 w-4" aria-hidden="true" />
@@ -811,7 +818,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
               {/* 10 Detail Tabs */}
               <div
                 role="tablist"
-                aria-label="تفاصيل المشروع"
+                aria-label={tr('st.detailsAria')}
                 className="flex flex-wrap items-center gap-1 border-b border-slate-800 pb-2"
               >
                 {DETAIL_TABS.map((t) => {
@@ -840,13 +847,13 @@ export const StudioView: React.FC<StudioViewProps> = ({
               {activeTab === 'logs' && (
                 <div className="space-y-4">
                   <div className="rounded-lg border border-slate-800 bg-slate-950/70 p-4 space-y-2">
-                    <h3 className="text-xs font-semibold text-cyan-400">ملخص التفكير الهندسي الاستباقي (Deep Reasoning)</h3>
+                    <h3 className="text-xs font-semibold text-cyan-400">{tr('st.reasoning')}</h3>
                     <pre className="whitespace-pre-wrap text-xs leading-relaxed text-slate-300 font-sans">
                       {activeProject.reasoningBrief}
                     </pre>
                     {activeProject.routingUsed && (
                       <div className="border-t border-slate-800 pt-2 flex flex-wrap items-center gap-2 text-[11px] text-slate-400 font-mono">
-                        <span className="text-slate-300 font-sans">النماذج المستخدمة:</span>
+                        <span className="text-slate-300 font-sans">{tr('st.modelsUsed')}</span>
                         <span dir="ltr">Architect: {activeProject.routingUsed.architect}</span>
                         <span aria-hidden="true">·</span>
                         <span dir="ltr">Builder: {activeProject.routingUsed.builder_alpha}</span>
@@ -856,7 +863,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                     )}
                     {activeProject.rollbackSummary && (
                       <div className="text-[11px] text-slate-400">
-                        التراجع الذري (Atomic Rollback):{' '}
+                        {tr('st.rollback')} {' '}
                         <span className={activeProject.rollbackSummary.applied ? 'text-amber-300' : 'text-emerald-400'}>
                           {activeProject.rollbackSummary.reason}
                         </span>
@@ -865,9 +872,9 @@ export const StudioView: React.FC<StudioViewProps> = ({
                   </div>
 
                   <div>
-                    <h3 className="text-xs font-semibold text-slate-300 mb-2">السجل التنفيذي الحي</h3>
+                    <h3 className="text-xs font-semibold text-slate-300 mb-2">{tr('st.liveLog')}</h3>
                     <pre
-                      dir="rtl"
+                      dir={language === 'ar' ? 'rtl' : 'ltr'}
                       className="rounded-lg border border-slate-800 bg-slate-950 p-4 text-xs leading-relaxed text-emerald-300/95 overflow-x-auto"
                     >
                       {activeProject.liveLogs}
@@ -881,9 +888,9 @@ export const StudioView: React.FC<StudioViewProps> = ({
                   <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-800 bg-slate-950 p-4">
                     <div className="space-y-1 text-xs">
                       <div className="font-semibold text-slate-200">
-                        حالة البيئة المعزولة:{' '}
+                        {tr('st.sandboxState')} {' '}
                         <span className={activeProject.sandbox.running ? 'text-emerald-400' : 'text-slate-400'}>
-                          {activeProject.sandbox.running ? 'قيد التشغيل الحي' : 'متوقفة'}
+                          {activeProject.sandbox.running ? tr('st.running') : tr('st.stopped')}
                         </span>
                         {activeProject.sandbox.running && activeProject.sandbox.port && (
                           <span dir="ltr" className="mr-2 font-mono text-cyan-300">
@@ -902,7 +909,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                         onClick={() => void runProbe(activeProject.id, '/health')}
                         className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-cyan-300 hover:border-cyan-500 cursor-pointer whitespace-nowrap"
                       >
-                        <span>فحص</span>
+                        <span>{tr('watch.scan')}</span>
                         <span dir="ltr" className="font-mono">/health</span>
                       </button>
                       <button
@@ -910,7 +917,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                         onClick={() => void runProbe(activeProject.id, primaryApiGetPath)}
                         className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-cyan-300 hover:border-cyan-500 cursor-pointer whitespace-nowrap"
                       >
-                        <span>فحص</span>
+                        <span>{tr('watch.scan')}</span>
                         <span dir="ltr" className="font-mono">{primaryApiGetPath}</span>
                       </button>
                       <a
@@ -929,7 +936,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                         className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-200 hover:border-emerald-500 whitespace-nowrap"
                       >
                         <ExternalLink className="h-3.5 w-3.5 text-emerald-400" aria-hidden="true" />
-                        <span>معاينة التطبيق (index.html)</span>
+                        <span>{tr('st.appPreview')}</span>
                       </a>
                     </div>
                   </div>
@@ -939,10 +946,10 @@ export const StudioView: React.FC<StudioViewProps> = ({
                     <div className="rounded-lg border border-slate-800 bg-slate-950 p-4 space-y-2.5">
                       <div className="flex items-center justify-between text-xs">
                         <span className="font-semibold text-slate-200">
-                          نقاط النهاية المكتشفة واختبارات العقود الحية
+                          {tr('st.endpoints')}
                         </span>
                         <span className="font-mono text-slate-400 tabular-nums">
-                          {activeProject.discoveredEndpoints.length} مسارات
+                          {activeProject.discoveredEndpoints.length} {tr('st.routes')}
                         </span>
                       </div>
                       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -962,7 +969,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                               onClick={() => void runMockProbe(activeProject.id, ep.method, ep.path)}
                               className="rounded border border-slate-700 bg-slate-950 px-2.5 py-1 text-[11px] text-slate-200 hover:border-cyan-500 cursor-pointer shrink-0 whitespace-nowrap"
                             >
-                              {activeProject.sandbox.running ? 'اختبار حي' : 'اختبار Mock'}
+                              {activeProject.sandbox.running ? tr('st.liveTest') : tr('st.mockTest')}
                             </button>
                           </div>
                         ))}
@@ -992,7 +999,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                   )}
 
                   <pre
-                    dir="rtl"
+                    dir={language === 'ar' ? 'rtl' : 'ltr'}
                     className="rounded-lg border border-slate-800 bg-slate-950 p-3 text-xs text-slate-300"
                   >
                     {activeProject.sandbox.logs}
@@ -1004,20 +1011,20 @@ export const StudioView: React.FC<StudioViewProps> = ({
                 <div className="space-y-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <p className="text-xs text-slate-400">
-                      اختبار ضغط HTTP حقيقي يقيس معدل الطلبات بالثانية (RPS) وتوزيع زمن الاستجابة.
+                      {tr('st.benchHint')}
                     </p>
                     <button
                       type="button"
                       onClick={() => void onRunBenchmark(activeProject.id)}
                       className="rounded-lg bg-cyan-500 px-4 py-1.5 text-xs font-semibold text-slate-950 hover:bg-cyan-400 cursor-pointer whitespace-nowrap"
                     >
-                      تشغيل اختبار الضغط الآن
+                      {tr('st.runBenchmark')}
                     </button>
                   </div>
 
                   {!activeProject.benchmark ? (
                     <div className="rounded-lg border border-dashed border-slate-800 p-8 text-center text-xs text-slate-400">
-                      لم يتم تشغيل اختبار الضغط لهذا المشروع بعد. اضغط الزر أعلاه للقياس الفوري.
+                      {tr('st.noBenchmark')}
                     </div>
                   ) : (
                     <div className="space-y-4">
@@ -1029,7 +1036,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                           </div>
                         </div>
                         <div className="rounded-lg border border-slate-800 bg-slate-950 p-3">
-                          <div className="text-[11px] text-slate-400">Avg Latency</div>
+                          <div className="text-[11px] text-slate-400">{tr('st.avgLatency')}</div>
                           <div className="mt-1 font-mono text-lg font-bold text-slate-100 tabular-nums">
                             {activeProject.benchmark.avgLatencyMs} ms
                           </div>
@@ -1055,7 +1062,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                       </div>
 
                       <div className="rounded-lg border border-slate-800 bg-slate-950 p-4 text-xs text-slate-400 font-mono tabular-nums">
-                        الطلبات: {activeProject.benchmark.totalRequests} · الناجحة: {activeProject.benchmark.successCount} · التزامن: {activeProject.benchmark.concurrency} · الأخطاء: {activeProject.benchmark.errorCount}
+                        {tr('st.benchSummary', { total: activeProject.benchmark.totalRequests, ok: activeProject.benchmark.successCount, concurrency: activeProject.benchmark.concurrency, errors: activeProject.benchmark.errorCount })}
                       </div>
                     </div>
                   )}
@@ -1067,10 +1074,10 @@ export const StudioView: React.FC<StudioViewProps> = ({
                   <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-800 bg-slate-950 p-4 text-xs">
                     <div className="space-y-1">
                       <div className="font-semibold text-slate-100">
-                        وثيقة سلسلة التوريد ({activeProject.sbom.bomFormat} {activeProject.sbom.specVersion})
+                        {tr('st.sbomTitle', { format: activeProject.sbom.bomFormat, version: activeProject.sbom.specVersion })}
                       </div>
                       <div className="text-slate-400 tabular-nums">
-                        المكوّنات المفحوصة: {activeProject.sbom.components.length} · الأسرار المكشوفة:{' '}
+                        {tr('st.components', { n: activeProject.sbom.components.length })} · {tr('st.secrets', { n: activeProject.sbom.securityAudit.hardcodedSecretsDetected })}{' '}
                         {activeProject.sbom.securityAudit.hardcodedSecretsDetected}
                       </div>
                     </div>
@@ -1082,8 +1089,8 @@ export const StudioView: React.FC<StudioViewProps> = ({
                       }`}
                     >
                       {activeProject.sbom.securityAudit.supplyChainStatus === 'clean'
-                        ? 'سلسلة التوريد نظيفة 100%'
-                        : 'تحذير: أسرار حساسة مكشوفة'}
+                        ? tr('st.cleanChain')
+                        : tr('st.secretsWarning')}
                     </span>
                   </div>
 
@@ -1091,10 +1098,10 @@ export const StudioView: React.FC<StudioViewProps> = ({
                     <table className="w-full text-right text-xs">
                       <thead className="bg-slate-950 text-slate-400">
                         <tr>
-                          <th className="px-3 py-2 font-medium">الملف / المكتبة</th>
-                          <th className="px-3 py-2 font-medium">النوع</th>
-                          <th className="px-3 py-2 font-medium">الحجم</th>
-                          <th className="px-3 py-2 font-medium">بصمة SHA-256</th>
+                          <th className="px-3 py-2 font-medium">{tr('st.fileLibrary')}</th>
+                          <th className="px-3 py-2 font-medium">{tr('st.type')}</th>
+                          <th className="px-3 py-2 font-medium">{tr('exp.size')}</th>
+                          <th className="px-3 py-2 font-medium">{tr('st.sha256')}</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-800/80 bg-slate-950/40">
@@ -1122,7 +1129,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                 <div className="space-y-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="text-xs font-semibold text-slate-300">
-                      مخطط الكيانات (ERD) وتدفق العمليات (Sequence)
+                      {tr('st.diagramsTitle')}
                     </span>
                     <div className="flex items-center gap-2">
                       <a
@@ -1132,7 +1139,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                         className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1 text-xs text-cyan-300 hover:border-cyan-500 whitespace-nowrap"
                       >
                         <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
-                        <span>فتح architecture_diagrams.html</span>
+                        <span>{tr('st.openDiagrams')}</span>
                       </a>
                       <div className="flex items-center gap-1 rounded-lg bg-slate-950 p-1">
                         <button
@@ -1142,7 +1149,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                             diagramView === 'visual' ? 'bg-slate-800 text-cyan-300' : 'text-slate-400'
                           }`}
                         >
-                          عرض مرئي تفاعلي
+                          {tr('st.visualView')}
                         </button>
                         <button
                           type="button"
@@ -1151,7 +1158,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                             diagramView === 'mermaid' ? 'bg-slate-800 text-cyan-300' : 'text-slate-400'
                           }`}
                         >
-                          مصدر Mermaid
+                          {tr('st.mermaidSource')}
                         </button>
                       </div>
                     </div>
@@ -1161,13 +1168,13 @@ export const StudioView: React.FC<StudioViewProps> = ({
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                       {/* Visual SVG ERD (isolated dir="ltr" so SVG text anchors correctly) */}
                       <div className="rounded-lg border border-slate-800 bg-slate-950 p-4">
-                        <h4 className="text-xs font-semibold text-slate-300 mb-3">مخطط كيانات البيانات (ERD)</h4>
+                        <h4 className="text-xs font-semibold text-slate-300 mb-3">{tr('st.erd')}</h4>
                         <div dir="ltr">
                           <svg
                             viewBox="0 0 420 220"
                             className="w-full h-52"
                             role="img"
-                            aria-label="مخطط كيانات البيانات"
+                            aria-label={tr('st.erdAria')}
                           >
                           {activeProject.diagrams.entities.slice(0, 2).map((ent, idx, arr) => {
                             const x = arr.length === 1 ? 124 : idx === 0 ? 18 : 230;
@@ -1227,20 +1234,20 @@ export const StudioView: React.FC<StudioViewProps> = ({
 
                       {/* Sequence Flow & Discovered Endpoints */}
                       <div className="rounded-lg border border-slate-800 bg-slate-950 p-4 space-y-3">
-                        <h4 className="text-xs font-semibold text-slate-300">تسلسل الطلبات ونقاط النهاية</h4>
+                        <h4 className="text-xs font-semibold text-slate-300">{tr('st.sequence')}</h4>
                         <ol className="space-y-2 text-xs text-slate-300">
                           <li className="rounded border border-slate-800 bg-slate-900 px-3 py-2">
-                            1. Voice HUD / Client يرسل الطلب بصيغة JSON
+                            {tr('st.seq1')}
                           </li>
                           <li className="rounded border border-slate-800 bg-slate-900 px-3 py-2">
-                            2. Service Gateway يتحقق من المسار والمدخلات
+                            {tr('st.seq2')}
                           </li>
                           <li className="rounded border border-slate-800 bg-slate-900 px-3 py-2">
-                            3. طبقة البيانات تنفّذ استعلاماً معيارياً (WAL Mode)
+                            {tr('st.seq3')}
                           </li>
                         </ol>
                         <div className="pt-1">
-                          <div className="text-[11px] text-slate-400 mb-1.5">المسارات المكتشفة:</div>
+                          <div className="text-[11px] text-slate-400 mb-1.5">{tr('st.discoveredPaths')}</div>
                           <div dir="ltr" className="flex flex-wrap items-center gap-2 font-mono text-xs text-cyan-300">
                             {activeProject.diagrams.endpoints.map((ep, idx) => (
                               <React.Fragment key={ep}>
@@ -1305,7 +1312,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                       className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-cyan-500/50 bg-slate-950 px-3 py-2 text-xs font-medium text-cyan-300 hover:bg-cyan-500/10 cursor-pointer"
                     >
                       <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-                      <span>{newFileOpen ? 'إغلاق نموذج الملف الجديد' : 'ملف جديد +'}</span>
+                      <span>{newFileOpen ? tr('st.closeNewFile') : tr('st.newFile')}</span>
                     </button>
 
                     <div className="max-h-96 overflow-y-auto rounded-lg border border-slate-800 bg-slate-950 p-2 space-y-1">
@@ -1338,7 +1345,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                           e.preventDefault();
                           const clean = newFilePath.trim();
                           if (!clean || !newFileContent.trim()) {
-                            setFileSaveNote('يرجى إدخال اسم الملف ومحتواه البرمجي.');
+                            setFileSaveNote(tr('st.needFile'));
                             return;
                           }
                           setActionBusy('create-file');
@@ -1349,19 +1356,19 @@ export const StudioView: React.FC<StudioViewProps> = ({
                             setNewFileOpen(false);
                             setNewFilePath('');
                             setNewFileContent('');
-                            setFileSaveNote(`تم إنشاء الملف ${clean} وتشغيل الاختبارات الفعلية بنجاح.`);
+                            setFileSaveNote(tr('st.fileCreatedWith', { file: clean }));
                           } catch (err) {
-                            setFileSaveNote(err instanceof Error ? err.message : 'تعذر إنشاء الملف.');
+                            setFileSaveNote(err instanceof Error ? err.message : tr('st.createFileError'));
                           } finally {
                             setActionBusy(null);
                           }
                         }}
                         className="rounded-lg border border-cyan-500/40 bg-slate-950 p-4 space-y-3"
                       >
-                        <div className="text-xs font-semibold text-cyan-300">إنشاء ملف إضافي جديد وإعادة الفحص الفعلي</div>
+                        <div className="text-xs font-semibold text-cyan-300">{tr('st.createFileTitle')}</div>
                         <div>
                           <label htmlFor="new-file-path" className="block text-xs text-slate-400 mb-1">
-                            مسار الملف داخل المشروع (مثال: helpers/validators.py أو utils.js)
+                            {tr('st.filePathHint')}
                           </label>
                           <input
                             id="new-file-path"
@@ -1375,7 +1382,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                         </div>
                         <div>
                           <label htmlFor="new-file-body" className="block text-xs text-slate-400 mb-1">
-                            محتوى الملف
+                            {tr('st.fileBody')}
                           </label>
                           <textarea
                             id="new-file-body"
@@ -1393,14 +1400,14 @@ export const StudioView: React.FC<StudioViewProps> = ({
                             disabled={actionBusy === 'create-file'}
                             className="rounded bg-cyan-500 px-4 py-1.5 text-xs font-semibold text-slate-950 hover:bg-cyan-400 disabled:opacity-50 cursor-pointer"
                           >
-                            {actionBusy === 'create-file' ? 'جاري الإنشاء والفحص...' : 'إنشاء وحفظ وإعادة الفحص'}
+                            {actionBusy === 'create-file' ? tr('st.creating') : tr('st.createSaveVerify')}
                           </button>
                           <button
                             type="button"
                             onClick={() => setNewFileOpen(false)}
                             className="rounded border border-slate-700 px-3 py-1.5 text-xs text-slate-300 hover:text-white cursor-pointer"
                           >
-                            إلغاء
+                            {tr('st.cancel')}
                           </button>
                         </div>
                       </form>
@@ -1422,23 +1429,23 @@ export const StudioView: React.FC<StudioViewProps> = ({
                                     try {
                                       await onSaveProjectFile(activeProject.id, currentFileName, draftContent);
                                       setEditingFile(false);
-                                      setFileSaveNote('تم حفظ التعديلات وإعادة تشغيل الاختبارات الفعلية بنجاح.');
+                                      setFileSaveNote(tr('st.savedOk'));
                                     } catch (err) {
-                                      setFileSaveNote(err instanceof Error ? err.message : 'تعذر الحفظ.');
+                                      setFileSaveNote(err instanceof Error ? err.message : tr('st.saveError'));
                                     } finally {
                                       setActionBusy(null);
                                     }
                                   }}
                                   className="rounded bg-cyan-500 px-3 py-1 text-xs font-semibold text-slate-950 hover:bg-cyan-400 disabled:opacity-50 cursor-pointer"
                                 >
-                                  {actionBusy === 'save-file' ? 'جاري الفحص...' : 'حفظ وإعادة الفحص الحقيقي'}
+                                  {actionBusy === 'save-file' ? tr('st.checking') : tr('st.saveVerify')}
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => setEditingFile(false)}
                                   className="rounded border border-slate-700 px-2.5 py-1 text-xs text-slate-300 hover:text-white cursor-pointer"
                                 >
-                                  إلغاء
+                                  {tr('st.cancel')}
                                 </button>
                               </>
                             ) : (
@@ -1451,7 +1458,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                                 }}
                                 className="rounded border border-slate-700 bg-slate-900 px-3 py-1 text-xs text-cyan-300 hover:border-cyan-500 cursor-pointer"
                               >
-                                تعديل الملف
+                                {tr('st.editFile')}
                               </button>
                             )}
                           </div>
@@ -1469,7 +1476,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                             rows={16}
                             value={draftContent}
                             onChange={(e) => setDraftContent(e.target.value)}
-                            aria-label={`محرر ملف ${currentFileName}`}
+                            aria-label={tr('st.editorAria', { file: currentFileName })}
                             className="w-full rounded-lg border border-cyan-500/50 bg-slate-950 p-4 font-mono text-xs leading-relaxed text-slate-100 focus:border-cyan-400 focus:outline-none"
                           />
                         ) : (
@@ -1490,7 +1497,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                 <div className="space-y-3">
                   {activeProject.diffs.length === 0 ? (
                     <div className="rounded-lg border border-slate-800 bg-slate-950 p-6 text-center text-xs text-slate-400">
-                      لا توجد تعديلات مقارنة بالنسخة الأساسية.
+                      {tr('st.noDiffs')}
                     </div>
                   ) : (
                     activeProject.diffs.map((d) => (
@@ -1534,9 +1541,9 @@ export const StudioView: React.FC<StudioViewProps> = ({
                 <div className="space-y-3">
                   <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-800 bg-slate-950/70 p-3">
                     <div>
-                      <h3 className="text-xs font-semibold text-emerald-400">وكيل الإصلاح الذاتي (Synthesizer &amp; Healer)</h3>
+                      <h3 className="text-xs font-semibold text-emerald-400">{tr('st.healAgent')}</h3>
                       <p className="mt-1 text-[11px] text-slate-400">
-                        يشخّص إخفاقات التحقق، يولّد ترقيعاً محافظاً، يتحقق منه فعلياً على القرص، ولا يعتمد إلا التحسين المُقاس.
+                        {tr('st.healHint')}
                       </p>
                     </div>
                     <button
@@ -1551,7 +1558,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
                         } catch (err) {
                           setHeaderNotice({
                             ok: false,
-                            text: err instanceof Error ? err.message : 'تعذر تشغيل وكيل الإصلاح الذاتي.',
+                            text: err instanceof Error ? err.message : tr('st.healError'),
                           });
                         } finally {
                           setActionBusy(null);
@@ -1560,33 +1567,33 @@ export const StudioView: React.FC<StudioViewProps> = ({
                       className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs text-emerald-200 hover:border-emerald-400 cursor-pointer"
                     >
                       <HeartPulse className="h-3.5 w-3.5" aria-hidden="true" />
-                      {actionBusy === 'heal' ? 'جاري الإصلاح...' : 'تشغيل دورة الإصلاح'}
+                      {actionBusy === 'heal' ? tr('st.healingBusy') : tr('st.runHealing')}
                     </button>
                   </div>
 
                   {!activeProject.healing ? (
                     <div className="rounded-lg border border-dashed border-slate-700 p-6 text-center text-xs text-slate-500">
-                      لم تُشغَّل أي دورة إصلاح بعد. اضغط «تشغيل دورة الإصلاح» لبدء التحليل والتحقق.
+                      {tr('st.noHealing')}
                     </div>
                   ) : (
                     <>
                       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                         <div className="rounded-lg border border-slate-800 bg-slate-950 p-2.5">
-                          <div className="text-[10px] text-slate-500">الحالة</div>
+                          <div className="text-[10px] text-slate-500">{tr('st.status')}</div>
                           <div className="text-xs font-semibold text-emerald-300">{activeProject.healing.status}</div>
                         </div>
                         <div className="rounded-lg border border-slate-800 bg-slate-950 p-2.5">
-                          <div className="text-[10px] text-slate-500">الدرجة</div>
+                          <div className="text-[10px] text-slate-500">{tr('st.scoreShort')}</div>
                           <div className="text-xs font-semibold text-cyan-300" dir="ltr">
                             {activeProject.healing.initialScore} → {activeProject.healing.finalScore}
                           </div>
                         </div>
                         <div className="rounded-lg border border-slate-800 bg-slate-950 p-2.5">
-                          <div className="text-[10px] text-slate-500">الترقيعات المعتمدة</div>
+                          <div className="text-[10px] text-slate-500">{tr('st.patches')}</div>
                           <div className="text-xs font-semibold text-slate-200">{activeProject.healing.attempts.length}</div>
                         </div>
                         <div className="rounded-lg border border-slate-800 bg-slate-950 p-2.5">
-                          <div className="text-[10px] text-slate-500">الاختبارات المنفذة</div>
+                          <div className="text-[10px] text-slate-500">{tr('st.testsRun')}</div>
                           <div className="text-xs font-semibold text-slate-200" dir="ltr">
                             {activeProject.healing.finalVerification.testsPassed}/{activeProject.healing.finalVerification.testsExecuted}
                           </div>
@@ -1632,6 +1639,7 @@ export const StudioView: React.FC<StudioViewProps> = ({
       {showExportModal && activeProject && (
         <ExportModal
           project={activeProject}
+          language={language}
           onClose={() => setShowExportModal(false)}
           onProjectUpdated={onRefreshProjects}
         />

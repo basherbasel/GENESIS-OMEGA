@@ -5,22 +5,23 @@
 ## طريقة الجرد
 
 ```
-git ls-files | Measure-Object -Line          → 118 ملفاً متتبعاً (بعد هذا الالتزام)
+git ls-files | Measure-Object -Line          → 122 ملفاً متتبعاً (بعد هذا الالتزام)
 Get-ChildItem src/lib/**/*.test.ts           → 27 ملف اختبار
 npm test                                     → 115 pass / 0 fail / 0 skipped
-npm run test:e2e                             → 9 pass / 0 fail (Playwright chromium)
+npm run test:e2e                             → 10 pass / 0 fail (Playwright chromium)
 npm run check                                → critical 9/9 · exit 0
+./scripts/bootstrap.sh --pull-models         → تهيئة لينكس/ماك (سحب النماذج اختياري وصريح)
 ```
 
 ## توزيع الملفات المتتبعة
 
 | المجلد | عدد الملفات | المحتوى |
 |---|---|---|
-| `(root)` | 25 | `server.ts`، إعدادات الحزمة، 15 ملف توثيق (منها `INVENTORY.md`)، `.gitignore`، `.env.example`، `models.config.json`، `package-lock.json`. |
+| `(root)` | 27 | `server.ts`، إعدادات الحزمة، 17 ملف توثيق (منها `INVENTORY.md`)، `LICENSE`، `CONTRIBUTING.md`، `.gitignore`، `.env.example`، `models.config.json`، `package-lock.json`. |
 | `src` | 83 | `App.tsx`، `main.tsx`، `index.css`، 11 مكوّنات، وحدات `lib` + `lib/brains` (3) + `lib/enterprise` (5)، 27 ملف اختبار (ضمن الـ 83). |
-| `scripts` | 5 | `backup.ts`, `restore.ts`, `doctor.ts`, `check-secrets.ts`, `windows_job_sandbox.ps1`. |
+| `scripts` | 7 | `backup.ts`, `restore.ts`, `doctor.ts`, `check-secrets.ts`, `windows_job_sandbox.ps1`, `bootstrap.ps1`, `bootstrap.sh`. |
 | `.github` | 1 | `workflows/ci.yml`. |
-| `e2e` | 1 | `studio.spec.ts` — 9 اختبارات متصفح حقيقية عبر Playwright. |
+| `e2e` | 1 | `studio.spec.ts` — 10 اختبارات متصفح حقيقية عبر Playwright (منها اختبار التبديل الثنائي اللغة). |
 | `(root)` | — | `playwright.config.ts` لإعداد المتصفح والخادم. |
 | `public` | 2 | أصول المنصة الأصلية. |
 
@@ -41,7 +42,7 @@ npm run check                                → critical 9/9 · exit 0
 | `healer.test.ts` | 5 | تشخيص ورقع وتحقق ورفض تحسين غير مُقاس. |
 | `job_queue.test.ts` | 3 | تسلسل المهام، فشل معزول، أحداث الحالة. |
 | `integrity.test.ts` | 5 | SHA-256 وحارس المسارات وتسريب المتغيرات. |
-| `i18n.test.ts` | 3 | اكتمال الترجمات، التبديل والتنسيق، رفض لغة غير معروفة. |
+| `i18n.test.ts` | 3 | اكتمال الترجمات (425 مفتاحاً عربياً/إنجليزياً)، التبديل والتنسيق، رفض لغة غير معروفة. |
 | `llama-bridge.test.ts` | 4 | mutex، timeout 100ms، MODEL_NOT_FOUND، ABORTED. |
 | `local_models.test.ts` | 6 | كتالوج 34 نموذجاً، توجيه محلي، عميل Ollama، معرّفات Gemini. |
 | `local_synthesis.test.ts` | 3 | توليد عبر الجسر، رفض المسارات، فشل مغلق بلا سحابة. |
@@ -61,20 +62,25 @@ npm run check                                → critical 9/9 · exit 0
 ```
 npm run lint         → tsc --noEmit
 npm test             → 115/115
-npm run test:e2e     → 9/9 (Playwright)
+npm run test:e2e     → 10/10 (Playwright)
 npm run check:secrets→ SECRETS_OK findings=0
 npm run doctor       → critical 9/9
 npm run doctor -- --ci → critical 4/4 · 5 skipped (مُعلن)
 npm run check        → lint + test + secrets + doctor
 npm run backup       → BACKUP_OK + MANIFEST
 npm run restore -- <dir> --yes → RESTORE_OK
+scripts/bootstrap.ps1 [-PullModels]  → BOOTSTRAP_OK (Windows)
+scripts/bootstrap.sh [--pull-models] → BOOTSTRAP_OK (Linux/macOS)
+git diff --name-only -- src/lib/ai_pipeline.ts → فارغ إلزامياً
 ```
 
 ## آخر الأدلة المسجلة
 
 - `RECOVERY.md` — `last successful restore: 2026-11-22`.
 - `PROOF.md` — لا تسليم خارجي حتى الآن؛ أدلة تشغيل داخلية فقط.
-- `SECURITY.md` — 5 مخاطر مع حالتها الحالية والتخفيف.
+- `SECURITY.md` — 5 مخاطر مع حالتها الحالية والتخفيف + نموذج التهديد المحلي أولاً وحواجز المسارات والإبلاغ عن الثغرات.
+- `CONTRIBUTING.md` — خريطة معمارية، حظر تعديل `ai_pipeline.ts`، بوابة التحقق وقائمة PR.
+- `LICENSE` — MIT باسم بشار باسل المدلل (2026).
 - `ARCHITECTURE.md` — شجرة + سطر لكل وحدة + تدفق بيانات.
 
 ## قاعدة التحديث

@@ -1,3 +1,4 @@
+import { t, type Language } from '../lib/i18n';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Mic, MicOff, Radio, Send, Sparkles, Volume2, VolumeX, Square } from 'lucide-react';
 import { OfflineAudioPlayer } from '../lib/offline_audio_player';
@@ -10,6 +11,7 @@ import type {
 } from '../lib/types';
 
 interface LiveWaveformHudProps {
+  language: Language;
   activeProjectId: number | null;
   pendingSuggestion: PendingSuggestion | null;
   onVoiceResult: (res: VoiceCommandResponse) => void;
@@ -17,19 +19,7 @@ interface LiveWaveformHudProps {
   onDismissSuggestion: () => void;
 }
 
-const MODE_LABELS: Record<WaveformMode, string> = {
-  idle: 'وضع الاستعداد الصوتي',
-  listening: 'يستمع الآن (تحليل الطيف الحي)',
-  thinking: 'يفكر ويحلل هندسياً...',
-  speaking: 'يتحدث الآن (توليف نغمي)',
-};
 
-const QUICK_PROMPTS = [
-  { label: 'حالة النظام', text: 'يا جينيسيس ما حالة النظام والذاكرة؟' },
-  { label: 'فكرة أداة خفيفة', text: 'بفكر أعمل أداة خفيفة تشتغل بدون إنترنت لإدارة العملاء' },
-  { label: 'اختبر الأداء', text: 'اختبر الأداء للمشروع الحالي' },
-  { label: 'افتح المخططات', text: 'اعرض المخططات الهندسية للمشروع' },
-];
 
 export const LiveWaveformHud: React.FC<LiveWaveformHudProps> = ({
   activeProjectId,
@@ -37,17 +27,34 @@ export const LiveWaveformHud: React.FC<LiveWaveformHudProps> = ({
   onVoiceResult,
   onConfirmSuggestion,
   onDismissSuggestion,
-}) => {
+
+  language,}) => {
+  const tr = (key: Parameters<typeof t>[1], vars?: Record<string, string | number>) => t(language, key, vars);
+
+const MODE_LABELS: Record<WaveformMode, string> = {
+  idle: tr('hud.idle'),
+  listening: tr('hud.listening'),
+  thinking: tr('hud.thinking'),
+  speaking: tr('hud.speaking'),
+};
+
+const QUICK_PROMPTS = [
+  { label: tr('hud.quickStatus'), text: tr('hud.promptStatus') },
+  { label: tr('hud.quickTool'), text: tr('hud.promptTool') },
+  { label: tr('hud.quickPerf'), text: tr('hud.promptPerf') },
+  { label: tr('hud.quickDiagrams'), text: tr('hud.promptDiagrams') },
+];
+
   const [mode, setMode] = useState<WaveformMode>('idle');
   const [transcript, setTranscript] = useState('');
   const [lastReply, setLastReply] = useState(
-    'أهلاً بك يا هندسة. تحدث أو اكتب أمراً هندسياً وسأتفاعل معك صوتياً ومعرفياً.',
+    tr('hud.welcome'),
   );
   const [mindset, setMindset] = useState<MindsetAnalysis>({
     thinkingStyle: 'collaborative_builder',
-    thinkingStyleLabel: 'بناء تعاوني متوازن',
+    thinkingStyleLabel: tr('hud.mindset'),
     emotion: 'calm_human',
-    emotionLabel: 'حوار هادئ متزن',
+    emotionLabel: tr('hud.tone'),
     prosody: { rate: 1.02, pitch: 1.0 },
   });
   const [engineSource, setEngineSource] = useState<string>('deterministic-nlu');
@@ -456,7 +463,7 @@ export const LiveWaveformHud: React.FC<LiveWaveformHudProps> = ({
       });
       const data = (await resp.json()) as VoiceCommandResponse & { error?: string };
       if (!resp.ok) {
-        setLastReply(data.error || 'تعذر تنفيذ الأمر الصوتي.');
+        setLastReply(data.error || tr('hud.commandError'));
         setMode('idle');
         return;
       }
@@ -473,7 +480,7 @@ export const LiveWaveformHud: React.FC<LiveWaveformHudProps> = ({
         setMode('idle');
       }
     } catch (err) {
-      setLastReply(err instanceof Error ? err.message : 'حدث خطأ أثناء الاتصال بالخادم الصوتي.');
+      setLastReply(err instanceof Error ? err.message : tr('hud.voiceConnectError'));
       setMode('idle');
     } finally {
       setSubmitting(false);
@@ -506,10 +513,10 @@ export const LiveWaveformHud: React.FC<LiveWaveformHudProps> = ({
         analyserRef.current = analyser;
         freqDataRef.current = new Uint8Array(analyser.frequencyBinCount);
       } else {
-        setMicNote('وضع الاستماع النشط (المحاكاة الطيفية مفعّلة في هذا المتصفح)');
+        setMicNote(tr('hud.listeningSim'));
       }
     } catch {
-      setMicNote('تعذر الوصول للميكروفون الفعلي — تم تفعيل المحاكاة الطيفية، يمكنك الإرسال نصياً.');
+      setMicNote(tr('hud.micFallback'));
     }
 
     // Attach browser Web SpeechRecognition if supported
@@ -539,7 +546,7 @@ export const LiveWaveformHud: React.FC<LiveWaveformHudProps> = ({
     if (SpeechRec) {
       try {
         const rec = new SpeechRec();
-        rec.lang = 'ar-EG';
+        rec.lang = language === 'ar' ? 'ar-EG' : 'en-US';
         rec.interimResults = true;
         rec.continuous = wakeWordLoop;
         rec.onresult = (ev) => {
@@ -576,7 +583,7 @@ export const LiveWaveformHud: React.FC<LiveWaveformHudProps> = ({
     <section
       data-testid="waveform-hud"
       data-waveform-mode={mode}
-      aria-label="شاشة الموجات الصوتية التفاعلية والشريك المعرفي"
+      aria-label={tr('hud.aria')}
       className="border-b border-slate-800 bg-slate-900/75"
     >
       <audio
@@ -592,7 +599,7 @@ export const LiveWaveformHud: React.FC<LiveWaveformHudProps> = ({
           <div className="lg:col-span-7">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
               <div className="flex items-center gap-2 text-xs text-slate-300">
-                <span className="font-semibold text-slate-100">شاشة الموجات الصوتية التفاعلية</span>
+                <span className="font-semibold text-slate-100">{tr('hud.title')}</span>
                 <span aria-hidden="true" className="text-slate-600">·</span>
                 <span
                   data-testid="waveform-mode-label"
@@ -610,15 +617,15 @@ export const LiveWaveformHud: React.FC<LiveWaveformHudProps> = ({
                 </span>
                 <span aria-hidden="true" className="text-slate-600">·</span>
                 <span className="text-slate-400 tabular-nums">
-                  {engineSource === 'gemini-cognitive' ? 'Gemini Cognitive' : 'NLU محلي فوري'}
+                  {engineSource === 'gemini-cognitive' ? 'Gemini Cognitive' : tr('hud.localNlu')}
                 </span>
                 <span aria-hidden="true" className="text-slate-600">·</span>
                 <span
                   data-testid="voice-engine-label"
                   title={
                     piperReady
-                      ? 'Piper TTS محلي جاهز — يعمل بدون إنترنت'
-                      : 'سيُستخدم Web Speech API حتى يتم تثبيت Piper ونموذج عربي'
+                      ? tr('hud.piperReadyTitle')
+                      : tr('hud.piperWaitTitle')
                   }
                   className={
                     audioSource === 'piper'
@@ -629,13 +636,13 @@ export const LiveWaveformHud: React.FC<LiveWaveformHudProps> = ({
                   }
                 >
                   {audioSource === 'piper'
-                    ? 'Piper عصبي محلي'
+                    ? tr('hud.piperNeural')
                     : audioSource === 'gemini'
                       ? 'Gemini TTS'
                       : audioSource === 'web-speech'
                         ? 'Web Speech'
                         : piperReady
-                          ? 'Piper جاهز'
+                          ? tr('hud.piperReady')
                           : 'Web Speech'}
                 </span>
               </div>
@@ -652,7 +659,7 @@ export const LiveWaveformHud: React.FC<LiveWaveformHudProps> = ({
                   }`}
                 >
                   <Radio className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span>نداء الاستيقاظ: يا جينيسيس</span>
+                  <span>{tr('hud.wakeWord')}</span>
                 </button>
 
                 <button
@@ -661,7 +668,7 @@ export const LiveWaveformHud: React.FC<LiveWaveformHudProps> = ({
                     if (ttsEnabled) stopAllSpeech();
                     setTtsEnabled((v) => !v);
                   }}
-                  aria-label={ttsEnabled ? 'كتم النطق الصوتي' : 'تفعيل النطق الصوتي'}
+                  aria-label={ttsEnabled ? tr('hud.muteAria') : tr('hud.unmuteAria')}
                   aria-pressed={ttsEnabled}
                   className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                     ttsEnabled
@@ -674,7 +681,7 @@ export const LiveWaveformHud: React.FC<LiveWaveformHudProps> = ({
                   ) : (
                     <VolumeX className="h-3.5 w-3.5" aria-hidden="true" />
                   )}
-                  <span>{ttsEnabled ? 'النطق مفعل' : 'صامت'}</span>
+                  <span>{ttsEnabled ? tr('hud.speechOn') : tr('hud.muted')}</span>
                 </button>
               </div>
             </div>
@@ -695,9 +702,9 @@ export const LiveWaveformHud: React.FC<LiveWaveformHudProps> = ({
           <div className="lg:col-span-5 flex flex-col gap-2.5">
             {/* Cognitive Mindset & Emotion Readout (unboxed typographic metadata) */}
             <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
-              <span className="text-slate-300 font-medium">نمط التفكير: {mindset.thinkingStyleLabel}</span>
+              <span className="text-slate-300 font-medium">{tr('hud.thinkingStyle', { label: mindset.thinkingStyleLabel })}</span>
               <span aria-hidden="true">·</span>
-              <span>النبرة: {mindset.emotionLabel}</span>
+              <span>{tr('hud.emotion', { label: mindset.emotionLabel })}</span>
               <span aria-hidden="true">·</span>
               <span className="font-mono tabular-nums text-slate-500">
                 rate {mindset.prosody.rate.toFixed(2)}
@@ -717,7 +724,7 @@ export const LiveWaveformHud: React.FC<LiveWaveformHudProps> = ({
               <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-cyan-500/40 bg-cyan-950/30 px-3 py-2 text-xs text-cyan-200">
                 <div className="flex items-center gap-1.5">
                   <Sparkles className="h-3.5 w-3.5 text-cyan-400" aria-hidden="true" />
-                  <span>يوجد اقتراح جاهز للتنفيذ ({pendingSuggestion.action}). هل نبدأ الآن؟</span>
+                  <span>{tr('hud.suggestion', { action: pendingSuggestion.action })} {tr('hud.suggestionAsk')}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
@@ -734,14 +741,14 @@ export const LiveWaveformHud: React.FC<LiveWaveformHudProps> = ({
                     }}
                     className="rounded bg-cyan-500 px-2.5 py-1 font-semibold text-slate-950 hover:bg-cyan-400 cursor-pointer whitespace-nowrap"
                   >
-                    نعم، نفذ الآن
+                    {tr('hud.confirm')}
                   </button>
                   <button
                     type="button"
                     onClick={onDismissSuggestion}
                     className="rounded border border-slate-700 px-2.5 py-1 text-slate-300 hover:bg-slate-800 cursor-pointer whitespace-nowrap"
                   >
-                    تجاهل
+                    {tr('hud.dismiss')}
                   </button>
                 </div>
               </div>
@@ -758,7 +765,7 @@ export const LiveWaveformHud: React.FC<LiveWaveformHudProps> = ({
               <button
                 type="button"
                 onClick={() => void toggleMicrophone()}
-                aria-label={mode === 'listening' ? 'إيقاف الاستماع' : 'بدء الاستماع الصوتي'}
+                aria-label={mode === 'listening' ? tr('hud.stopListening') : tr('hud.startListening')}
                 className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                   mode === 'listening'
                     ? 'bg-teal-500 text-slate-950 hover:bg-teal-400'
@@ -770,41 +777,41 @@ export const LiveWaveformHud: React.FC<LiveWaveformHudProps> = ({
                 ) : (
                   <Mic className="h-4 w-4" aria-hidden="true" />
                 )}
-                <span>{mode === 'listening' ? 'إيقاف' : 'تحدث'}</span>
+                <span>{mode === 'listening' ? tr('hud.stop') : tr('hud.speak')}</span>
               </button>
 
               {mode === 'speaking' && (
                 <button
                   type="button"
                   onClick={stopAllSpeech}
-                  aria-label="مقاطعة الصوت"
+                  aria-label={tr('hud.interruptAria')}
                   className="inline-flex items-center gap-1 rounded-lg border border-amber-500/50 bg-amber-500/15 px-2.5 py-2 text-xs font-medium text-amber-300 hover:bg-amber-500/25 whitespace-nowrap shrink-0 cursor-pointer"
                 >
                   <Square className="h-3 w-3" aria-hidden="true" />
-                  <span>مقاطعة</span>
+                  <span>{tr('hud.interrupt')}</span>
                 </button>
               )}
 
               <label htmlFor="voice-command-input" className="sr-only">
-                أمر صوتي أو حوار هندسي
+                {tr('hud.inputAria')}
               </label>
               <input
                 id="voice-command-input"
                 type="text"
                 value={transcript}
                 onChange={(e) => setTranscript(e.target.value)}
-                placeholder="اكتب أمراً صوتياً أو فكرة مشروع... (مثال: أيوه يلا بينا)"
+                placeholder={tr('hud.inputPlaceholder')}
                 className="min-w-0 flex-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none"
               />
 
               <button
                 type="submit"
                 disabled={submitting || !transcript.trim()}
-                aria-label="إرسال الأمر"
+                aria-label={tr('hud.sendAria')}
                 className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-950 transition-colors hover:bg-white disabled:opacity-40 whitespace-nowrap shrink-0 cursor-pointer"
               >
                 <Send className="h-3.5 w-3.5" aria-hidden="true" />
-                <span>إرسال</span>
+                <span>{tr('hud.send')}</span>
               </button>
             </form>
 

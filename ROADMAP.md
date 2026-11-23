@@ -250,20 +250,20 @@ npm run lint && npm test
 | 4أ — اللوحة | ✅ | `DashboardView` بـ CSS خالص من `dashboard_metrics.ts` |
 | 4ب — PDF | ✅ | `@media print` + `window.print()` + رابط `?print=1` |
 | 5 — ربط الجسر المحلي | ✅ | `local_synthesis.ts`، `engine=ollama-local` حياً، `ai_pipeline.ts` لم يُلمس |
-| 4ج — E2E | ✅ | 6 اختبارات Playwright حقيقية (`npm run test:e2e`) |
+| 4ج — E2E | ✅ | 10 اختبارات Playwright حقيقية (`npm run test:e2e`) |
 | 4د — لغة إنجليزية | ✅ | `i18n.ts` + زر تبديل + اختبار E2E |
 
-### 14.2 خريطة الملفات (102 ملف متتبع)
+### 14.2 خريطة الملفات (122 ملف متتبع)
 
 | المسار | Count | الوظيفة |
 |---|---|---|
 | `server.ts` | 1 | Express + كل المسارات + SSE + طابور المهام + خط الإنتاج |
 | `src/App.tsx` + `main.tsx` + `index.css` | 3 | إدارة الواجهة والتنقل والبث المباشر |
-| `src/components/` | 10 | Studio / Dashboard / Vault / Watch / Migration / Catalog / Export / HUD / Nav / Auth |
-| `src/lib/` | 66 | 34 وحدة إنتاج + 22 اختباراً + سكربتات مساعدة |
-| `scripts/` | 5 | backup / restore / doctor / check-secrets / Job Object supervisor |
+| `src/components/` | 11 | Studio / Dashboard / Vault / Watch / Migration / Catalog / Export / HUD / Nav / Auth / Enterprise |
+| `src/lib/` | 69 | وحدات إنتاج + 27 اختباراً + `i18n.ts` بـ 425 مفتاحاً |
+| `scripts/` | 7 | backup / restore / doctor / check-secrets / Job Object / bootstrap.ps1 / bootstrap.sh |
 | `.github/workflows/ci.yml` | 1 | بوابات CI الأربع |
-| جذر المشروع | 15 | توثيق + إعدادات + مرآة المتجر + حزمة التأمينات |
+| جذر المشروع | 28 | توثيق + LICENSE + CONTRIBUTING + إعدادات + مرآة المتجر + حزمة التأمينات |
 
 ### 14.3 الخوارزميات الصحيحة المطبّقة
 
@@ -306,7 +306,7 @@ npm run restore -- <dir> --yes → RESTORE_OK
 | **1 — العقول المحلية وفهرس المستودعات** | ✅ منجزة | `brains/brain_registry.ts` · `brains/repo_indexer.ts` · `brains/surgical_patcher.ts` + 4 اختبارات |
 | **2 — محرك الشركة والأقسام العشرة** | ✅ منجزة | `enterprise/departments.ts` · `enterprise/work_order_engine.ts` · `EnterpriseView.tsx` + 4 اختبارات |
 | 3 — صيانة المشاريع القائمة | ✅ منجزة | `enterprise/repo_ingest.ts` · `local_synthesis.synthesizeTextWithBridge` · لوحة الصيانة في `EnterpriseView.tsx` |
-| 4 — الجاهزية مفتوحة المصدر | ⬜ | `LICENSE` · `CONTRIBUTING.md` · `scripts/bootstrap.ps1/.sh` |
+| 4 — الجاهزية مفتوحة المصدر | ✅ منجزة | `LICENSE` · `CONTRIBUTING.md` · `SECURITY.md` · `scripts/bootstrap.ps1/.sh` · شلّ ثنائي اللغة بالكامل · 10 اختبارات E2E |
 
 **ما أُنجز فعلياً في المرحلة 1:**
 - 4 ملفات عقول (`architect`, `coder`, `healer`, `auditor`) ببارامترات حتمية (temperature 0.05–0.25، num_ctx 4096–8192) وعقود نظام، مع اختيار نموذج Ollama مثبّت فقط — لا معرّف سحابي واحد.
@@ -319,7 +319,7 @@ npm run restore -- <dir> --yes → RESTORE_OK
 - آلة حالة persisted لـ أوامر العمل: `BACKLOG → SPEC_BLUEPRINT → IMPLEMENTATION → OS_VERIFICATION → SECURITY_AUDIT → SELF_HEALING → VERIFIED_COMMIT` مع `FAILED_CLOSED` يسجّل رمز الخطأ والمرحلة.
 - كل انتقال يُحفظ في SQLite (meta key `workOrders`) ويُبث عبر موضوع `work_order` على `/api/events`؛ المسارات: `GET/POST /api/enterprise/work-orders` و`GET /api/enterprise/work-orders/:id` و`POST .../:id/run` و`GET /api/enterprise/departments`.
 - التحقق من مسار الكتابة داخل مساحة العمل (`isSafeRelativePath` + فحص الانزلاق)، وفحص أسرار حقيقي `scanSecretsAndSecurity`، ودورة شفاء حقيقية عبر `healProject` ثم إعادة تحقق — بلا أي fallback سحابي.
-- 4 اختبارات: دقة التصنيف، تقدم كامل بتحقق OS حقيقي (`node --check`)، فشل مغلق لخطأ الجسر (`MODEL_NOT_FOUND`)، ورفض مسار `../` قبل أي كتابة. E2E أصبح 8/8 (و9/9 بعد المرحلة 3).
+- 4 اختبارات: دقة التصنيف، تقدم كامل بتحقق OS حقيقي (`node --check`)، فشل مغلق لخطأ الجسر (`MODEL_NOT_FOUND`)، ورفض مسار `../` قبل أي كتابة. E2E أصبح 8/8 (و10/10 بعد المرحلتين 3 و4).
 
 **ما أُنجز فعلياً في المرحلة 3:**
 - استيعاب مستودع قائم بقراءة فقط: رفض جذور النظام و`..` والمسارات النسبية غير الآمنة قبل أي قراءة، مشي محدود (4000 ملفاً/96MB) بلا تتبّع symlink، ومانيفست SHA-256 لكل ملف، مع نسخة معزولة مؤقتة تُحذف دائماً في `finally`.
@@ -328,7 +328,13 @@ npm run restore -- <dir> --yes → RESTORE_OK
 - المسارات: `POST /api/enterprise/ingest` (تدقيق) و`POST /api/enterprise/ingest/evolve` (مع `harden-only`/`develop-feature`/`full-evolve` وcommit اختياري) و`GET /api/enterprise/ingest/runs` (20 عملية محفوظة في meta `ingestRuns`)، مع لوحة صيانة في `EnterpriseView.tsx` تعرض المراحل المباشرة وسجل العمليات.
 - 6 اختبارات وحدة تعمل على مستودعات حقيقية: حارس المسار، مانيفست SHA-256 وتدقيق أساس بتشغيل `node --test` فعلي، ترقية ذرّية تحسّن الدرجة مع فحص بايتات الملفات غير المعدّلة، فشل مغلق عند تراجع الاختبارات أو `TIMEOUT` الجسر، وسجل تدقيق persists مع رفض جذور النظام. E2E التاسع ينفّذ تدقيقاً حقيقياً ويرفض `C:\Windows\System32` بـ 400 ويعرض اللوحة.
 
-**التالي:** المرحلة 4 — الجاهزية مفتوحة المصدر (`LICENSE` · `CONTRIBUTING.md` · `scripts/bootstrap.ps1/.sh`).
+**ما أُنجز فعلياً في المرحلة 4:**
+- حوكمة:`LICENSE` (MIT باسم بشار باسل المدلل، 2026)، `CONTRIBUTING.md` (خريطة معمارية، قاعدة عدم تعديل `ai_pipeline.ts`، سياسة محلية/فشل مغلق، بوابة `tsc`/`npm test`/`npm run test:e2e`/`npm run check`، قائمة PR)، وتوسيع `SECURITY.md` بنموذج التهديد المحلي وحواجز المسارات والبيئة المعقّمة والمصادقة والإبلاغ عن الثغرات.
+- تهيئة صفرية عبر `scripts/bootstrap.ps1` (Windows 5.1/7+) و`scripts/bootstrap.sh` (POSIX): تحقق Node≥20، فحص Ollama على `OLLAMA_HOST` (الافتراضي `http://127.0.0.1:11434`)، `npm install`، `npm run doctor` لتقرير 18 بيئة، ثم `npm run check` وطباعة `OMEGA_LOCAL_FIRST=1 npm run dev`. سحب النماذج (`qwen2.5-coder:1.5b` و`3b`) لا يحدث إلا بعلم صريح (`-PullModels`/`--pull-models`)؛ لا PATH ولا أسرار في السكربتات.
+- شلّ ثنائي اللغة بنسبة 100%: 425 مفتاحاً في `i18n.ts` تغطي كل العروض والأزرار والحقول والحالات الفارغة والتلميحات (Studio، Export، HUD، Catalog، Watch، Vault، Migration، Auth، Enterprise، Dashboard) مع `dir` و locale ديناميكيين. اختبار E2E عاشر يبدّل اللغة عبر كل العروض بما فيها أوامر الشركة وصيانة المستودعات.
+- توثيق متزامن: `INVENTORY.md` (122 ملفاً، 27 ملف اختبار، 115 حالة، 10 E2E)، `ARCHITECTURE.md`، `LIMITATIONS.md`، `OPS.md`، `README.md` مع أوامر التهيئة ومسارات `/api/enterprise/*`.
+
+**التالي:** لا مرحلة تالية في خارطة v2.0 — الإصدار جاهز للمراجعة النهائية؛ أي عمل جديد يُسجَّل أولاً في `BACKLOG.md` بقرار وتاريخ.
 
 **التوقيع:** المهندس بشار — owner & executor
 **آخر تحديث:** 23 نوفمبر 2026

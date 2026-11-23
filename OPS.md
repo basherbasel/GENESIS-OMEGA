@@ -6,14 +6,14 @@
 
 | الركن | الملف المرجعي | ما يضمنه |
 |---|---|---|
-| جرد الملفات والاختبارات | `INVENTORY.md` | 95 ملفاً، 19 اختباراً، 85 حالة — بالأوامر لا بالتقدير |
+| جرد الملفات والاختبارات | `INVENTORY.md` | 122 ملفاً، 27 ملف اختبار، 115 حالة — بالأوامر لا بالتقدير |
 | مخزن الحالة | `data/omega_store.db` (WAL) + مرآة `omega_store.json` | كتابة ذرية، وهجرة تلقائية من المرآة عند الاستعادة |
 | البث المباشر | `GET /api/events` (SSE) | `event: ready` و`event: state` و`event: job`، نبضة كل 15 ثانية |
 | المهام الخلفية | `POST /api/jobs` + `GET /api/jobs/:id` | يُعيد `jobId` فوراً؛ الحالة `queued/running/done/failed` وتُدفع عبر SSE |
 | لوحة القياسات | تبويب «لوحة القياسات» | أرقام من المتجر مباشرة؛ أشرطة CSS بلا مكتبة خارجية |
 | تقرير PDF | زر «حفظ PDF» → `report/html?print=1` | طباعة المتصفح إلى PDF؛ لا مولّد أصلي |
 | اللغة | زر `English`/`العربية` في الشريط | يبدّل نصوص الواجهة الثابتة ويُحفظ في `localStorage` |
-| خارطة التوسّع | `ROADMAP.md` | المراحل 0–4 + ترتيب الخطوات التالية |
+| خارطة التوسّع | `ROADMAP.md` | المراحل 0–4 + خارطة v2.0 (المرحلة 4 ✅) |
 | النسخ والاستعادة | `RECOVERY.md` | استعادة فعلية موثّقة بتاريخ |
 | الحدود المعروفة | `LIMITATIONS.md` | ما لا يفعله العزل ولا يتحقق منه النظام |
 | القرارات | `DECISIONS.md` | لماذا لا Docker ولماذا 3 مشاريع |
@@ -24,12 +24,44 @@
 ```
 npm run dev            تشغيل الاستوديو على 127.0.0.1:3000
 npm run backup         نسخ حالة التشغيل
-npm run check          lint + 57 اختبار + فحص أسرار + doctor
+npm run check          lint + 115 اختبار + فحص أسرار + doctor
 npm run doctor         فحص جاهزية مفصّل بجدول [✓/✗/—]
 npm run doctor -- --ci فحص CI: البوابات المحمولة تُنفَّذ، والبوابات المضيفة تُعلَن كمتخطاة لا كنجاح صامت
-npm run test:e2e    5 اختبارات متصفح حقيقية (Playwright chromium)، منفصلة عن npm test
+npm run test:e2e    10 اختبارات متصفح حقيقية (Playwright chromium)، منفصلة عن npm test
 npm run check:secrets  فحص الملفات المتتبعة لأنماط البيانات السرية
+scripts/bootstrap.ps1 [-PullModels]   تهيئة Windows (Node≥20 + Ollama + install + doctor + check)
+scripts/bootstrap.sh [--pull-models]  تهيئة Linux/macOS (نفس البوابات)
 ```
+
+## أوامر الشركة وصيانة المستودعات (v2.0)
+
+```bash
+curl http://127.0.0.1:3000/api/enterprise/departments
+curl http://127.0.0.1:3000/api/enterprise/work-orders
+curl http://127.0.0.1:3000/api/enterprise/ingest/runs
+curl -X POST http://127.0.0.1:3000/api/enterprise/ingest \
+  -H 'Content-Type: application/json' -d '{"path":"E:\\code\\my-repo"}'
+curl -X POST http://127.0.0.1:3000/api/enterprise/ingest/evolve \
+  -H 'Content-Type: application/json' -d '{"path":"E:\\code\\my-repo","mode":"harden-only"}'
+```
+
+مراحل التدقيق والتطوير تُبثّ على `/api/events` تحت الموضوع `ingest` وتظهر مباشرة في تبويب أوامر الشركة.
+
+## التهيئة على جهاز جديد
+
+```powershell
+# Windows (PowerShell 5.1/7+)
+.\\scripts\\bootstrap.ps1              # لا يسحب نماذج
+.\\scripts\\bootstrap.ps1 -PullModels  # يسحب qwen2.5-coder:1.5b و3b صراحةً
+```
+
+```bash
+# Linux / macOS
+sh scripts/bootstrap.sh
+sh scripts/bootstrap.sh --pull-models
+```
+
+السكربتات تتحقق من Node ≥ 20 ومن اتصال Ollama على `OLLAMA_HOST` (الافتراضي `http://127.0.0.1:11434`)، تنفّذ `npm install` و`npm run doctor` و`npm run check`، ثم تطبع `OMEGA_LOCAL_FIRST=1 npm run dev`. لا تغيّر PATH ولا تحتوي أسراراً.
 
 ## روتين يومي (قبل 시작 العمل)
 

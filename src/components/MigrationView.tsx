@@ -1,8 +1,10 @@
+import { t, type Language } from '../lib/i18n';
 import React, { useState } from 'react';
 import { ArrowLeftRight, CheckCircle2, FolderPlus, ShieldCheck, TriangleAlert } from 'lucide-react';
 import type { LegacyMigrationResult } from '../lib/types';
 
 interface MigrationViewProps {
+  language: Language;
   onPromoteMigratedProject?: (payload: {
     title: string;
     prompt: string;
@@ -56,7 +58,10 @@ print "Done for", name`,
   },
 ];
 
-export const MigrationView: React.FC<MigrationViewProps> = ({ onPromoteMigratedProject }) => {
+export const MigrationView: React.FC<MigrationViewProps> = ({ onPromoteMigratedProject ,
+  language,}) => {
+  const tr = (key: Parameters<typeof t>[1], vars?: Record<string, string | number>) => t(language, key, vars);
+
   const [filename, setFilename] = useState(LEGACY_PRESETS[0].filename);
   const [sourceCode, setSourceCode] = useState(LEGACY_PRESETS[0].code);
   const [targetLanguage, setTargetLanguage] = useState('Python 3.12');
@@ -72,7 +77,7 @@ export const MigrationView: React.FC<MigrationViewProps> = ({ onPromoteMigratedP
   const handleMigrate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!sourceCode.trim()) {
-      setError('يرجى إدخال الكود التراثي للتحليل.');
+      setError(tr('mig.needCode'));
       return;
     }
     setError(null);
@@ -89,14 +94,14 @@ export const MigrationView: React.FC<MigrationViewProps> = ({ onPromoteMigratedP
         error?: string;
       };
       if (!resp.ok || !data.migration || !data.generatedFiles) {
-        setError(data.error || 'تعذر تنفيذ الهجرة البرمجية.');
+        setError(data.error || tr('mig.migrateError'));
         return;
       }
       setResult({ migration: data.migration, generatedFiles: data.generatedFiles });
       const firstKey = Object.keys(data.generatedFiles)[0] || '';
       setSelectedFile(firstKey);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'فشل الاتصال بمحرك الهجرة.');
+      setError(err instanceof Error ? err.message : tr('mig.connectError'));
     } finally {
       setBusy(false);
     }
@@ -108,15 +113,15 @@ export const MigrationView: React.FC<MigrationViewProps> = ({ onPromoteMigratedP
     setError(null);
     try {
       await onPromoteMigratedProject({
-        title: `نظام مرحّل (${filename} ← ${targetLanguage})`,
-        prompt: `ترحيل حقيقي للنظام التراثي ${filename} إلى ${targetLanguage} مع اختبارات التطابق السلوكي وسلسلة التوريد SBOM.`,
+        title: tr('mig.promoteTitle', { filename, target: targetLanguage }),
+        prompt: tr('mig.promotePrompt', { filename, target: targetLanguage }),
         files: {
           [filename.trim() || 'legacy_source.txt']: sourceCode,
           ...result.generatedFiles,
         },
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'تعذر اعتماد المشروع في الاستوديو.');
+      setError(err instanceof Error ? err.message : tr('mig.promoteError'));
     } finally {
       setPromoting(false);
     }
@@ -127,9 +132,9 @@ export const MigrationView: React.FC<MigrationViewProps> = ({ onPromoteMigratedP
   return (
     <div className="mx-auto max-w-[1440px] px-4 py-6 sm:px-6 space-y-6">
       <div className="border-b border-slate-800 pb-4">
-        <h1 className="text-xl font-bold text-slate-100">مختبر هجرة وتحديث الأنظمة القديمة</h1>
+        <h1 className="text-xl font-bold text-slate-100">{tr('mig.title')}</h1>
         <p className="mt-1 text-sm text-slate-400">
-          تحويل الشيفرات التراثية (COBOL / Pascal / Fortran / Python 2) إلى خدمات حديثة مع تنفيذ فعلي لاختبارات التطابق على النظام.
+          {tr('mig.subtitle')}
         </p>
       </div>
 
@@ -140,7 +145,7 @@ export const MigrationView: React.FC<MigrationViewProps> = ({ onPromoteMigratedP
           className="lg:col-span-6 rounded-xl border border-slate-800 bg-slate-900/70 p-5 space-y-4"
         >
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-sm font-semibold text-slate-100">الكود المصدري التراثي</h2>
+            <h2 className="text-sm font-semibold text-slate-100">{tr('mig.source')}</h2>
             <div className="flex flex-wrap items-center gap-1.5">
               {LEGACY_PRESETS.map((preset) => (
                 <button
@@ -162,7 +167,7 @@ export const MigrationView: React.FC<MigrationViewProps> = ({ onPromoteMigratedP
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label htmlFor="legacy-filename" className="block text-xs text-slate-400 mb-1">
-                اسم الملف التراثي
+                {tr('mig.filename')}
               </label>
               <input
                 id="legacy-filename"
@@ -176,7 +181,7 @@ export const MigrationView: React.FC<MigrationViewProps> = ({ onPromoteMigratedP
 
             <div>
               <label htmlFor="legacy-target" className="block text-xs text-slate-400 mb-1">
-                اللغة الحديثة المستهدفة
+                {tr('mig.target')}
               </label>
               <select
                 id="legacy-target"
@@ -193,7 +198,7 @@ export const MigrationView: React.FC<MigrationViewProps> = ({ onPromoteMigratedP
 
           <div>
             <label htmlFor="legacy-source" className="block text-xs text-slate-400 mb-1">
-              محتوى الملف
+              {tr('st.fileBody')}
             </label>
             <textarea
               id="legacy-source"
@@ -213,14 +218,14 @@ export const MigrationView: React.FC<MigrationViewProps> = ({ onPromoteMigratedP
             className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-cyan-500 px-4 py-2.5 text-xs font-semibold text-slate-950 hover:bg-cyan-400 disabled:opacity-50 cursor-pointer"
           >
             <ArrowLeftRight className="h-4 w-4" aria-hidden="true" />
-            <span>{busy ? 'جاري التحليل والترحيل والتشغيل...' : 'تحليل وترحيل الكود القديم'}</span>
+            <span>{busy ? tr('mig.busy') : tr('mig.run')}</span>
           </button>
         </form>
 
         {/* Modernized Output Panel */}
         <div className="lg:col-span-6 rounded-xl border border-slate-800 bg-slate-900/70 p-5 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-sm font-semibold text-slate-100">المخرجات الحديثة واختبارات التطابق</h2>
+            <h2 className="text-sm font-semibold text-slate-100">{tr('mig.output')}</h2>
             {result && onPromoteMigratedProject && (
               <button
                 type="button"
@@ -229,16 +234,16 @@ export const MigrationView: React.FC<MigrationViewProps> = ({ onPromoteMigratedP
                 className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-500/60 bg-cyan-500/15 px-3 py-1.5 text-xs font-medium text-cyan-200 hover:bg-cyan-500/25 disabled:opacity-50 cursor-pointer whitespace-nowrap"
               >
                 <FolderPlus className="h-3.5 w-3.5" aria-hidden="true" />
-                <span>{promoting ? 'جاري الاعتماد...' : 'اعتماد كمشروع في خط الإنتاج'}</span>
+                <span>{promoting ? tr('mig.promoting') : tr('mig.promote')}</span>
               </button>
             )}
           </div>
 
           {!result ? (
             <div className="flex h-80 flex-col items-center justify-center rounded-lg border border-dashed border-slate-800 bg-slate-950/50 p-6 text-center">
-              <p className="text-sm text-slate-300">جاهز لتحويل الأنظمة التراثية</p>
+              <p className="text-sm text-slate-300">{tr('mig.ready')}</p>
               <p className="mt-1 text-xs text-slate-500">
-                اختر نموذجاً أو الصق الكود القديم ثم اضغط «تحليل وترحيل الكود القديم» لاستخراج الوحدات الحديثة وتشغيل اختبارات التطابق الفعلية.
+                {tr('mig.hint')}
               </p>
             </div>
           ) : (
@@ -246,10 +251,10 @@ export const MigrationView: React.FC<MigrationViewProps> = ({ onPromoteMigratedP
               <div className="flex flex-wrap items-center gap-2 text-xs text-emerald-400">
                 <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
                 <span>
-                  تم اكتشاف ({result.migration.legacyDetected.map((d) => `${d.path}: ${d.language}`).join('، ')})
+                  {tr('mig.detected', { list: result.migration.legacyDetected.map((d) => `${d.path}: ${d.language}`).join(', ') })}
                 </span>
                 <span aria-hidden="true" className="text-slate-600">·</span>
-                <span className="text-slate-300">الهدف: {result.migration.targetLanguage}</span>
+                <span className="text-slate-300">{tr('mig.targetLabel', { target: result.migration.targetLanguage })}</span>
               </div>
 
               {ver && (
@@ -269,8 +274,8 @@ export const MigrationView: React.FC<MigrationViewProps> = ({ onPromoteMigratedP
                         <TriangleAlert className="h-4 w-4 text-amber-400" aria-hidden="true" />
                       )}
                       <span>
-                        التحقق الفعلي على نظام التشغيل ({ver.runtime}) —{' '}
-                        {ver.exitCode === 0 ? 'اختبارات التطابق ناجحة' : 'انتبه لنتائج التنفيذ'}
+                        {tr('mig.osVerify', { runtime: ver.runtime })} —{' '}
+                        {ver.exitCode === 0 ? tr('mig.parityPassed') : tr('mig.parityWarning')}
                       </span>
                     </div>
                     <span dir="ltr" className="font-mono text-slate-300 tabular-nums">

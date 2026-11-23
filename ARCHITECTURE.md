@@ -7,6 +7,8 @@
 ```
 genesis-omega/
 ├── server.ts                  نقطة الدخول: Express + Vite middleware + كل مسارات /api و/sandbox.
+├── LICENSE                    ترخيص MIT باسم بشار باسل المدلل (2026).
+├── CONTRIBUTING.md            قواعد المساهمة، حظر ai_pipeline.ts، بوابة التحقق.
 ├── index.html                 شلّ تطبيق React (نقطة تحميل main.tsx).
 ├── package.json               الهوية genesis-omega@1.0.0، السكربتات، التبعيات.
 ├── vite.config.ts             إعدادات Vite + استثناء مراقبة data/ وdist/.
@@ -20,6 +22,8 @@ genesis-omega/
 │   ├── restore.ts             استعادة محقّقة من MANIFEST مع تأكيد صريح.
 │   ├── doctor.ts              فحص تشغيلي بجدول [✓/✗] وexit 0/1.
 │   └── check-secrets.ts       فحص git ls-files لأنماط بيانات سرية.
+│   ├── bootstrap.ps1          تهيئة Windows: Node≥20، Ollama، npm install/doctor/check، سحب نماذج اختياري صريح.
+│   └── bootstrap.sh           تهيئة POSIX: نفس البوابات بلا PATH changes ولا أسرار.
 ├── src/
 │   ├── App.tsx                حالة الواجهة العامة والتوجيه بين العروض الستة.
 │   ├── index.css              تنسيقات Tailwind والثيم الداكن.
@@ -33,7 +37,7 @@ genesis-omega/
 ├── models.config.json         إعداد Ollama المحلي (النماذج والأدوار).
 ├── public/assets/aistudio/    أصول واجهة المنصة الأصلية.
 ├── playwright.config.ts       إعداد Playwright: webServer + chromium + baseURL.
-├── e2e/studio.spec.ts         9 اختبارات E2E حقيقية (تنقل/لغة/لوحة/نموذج/SSE/أقسام/أمر عمل/PDF/صيانة مستودع).
+├── e2e/studio.spec.ts         10 اختبارات E2E حقيقية (تنقل/لغة/لوحة/نموذج/SSE/أقسام/أمر عمل/PDF/صيانة مستودع/تبديل ثنائي لكل العروض).
 └── .github/workflows/ci.yml   install + lint + test + doctor --ci + build.
 ```
 
@@ -73,7 +77,7 @@ genesis-omega/
 | store_schema.ts | مخطط Zod يمنع تحميل متجر تالف قبل استخدام حقوله. |
 | verifier.ts | يشغّل اختبارات نظام التشغيل الفعلية ويمنع أرقاماً مُختلقة. |
 | watcher.ts | يراقب المجلدات ويقارن SHA-256 ويُطلق تدقيقاً عند التغيير. |
-| `i18n.ts` | قاموس عربي/إنجليزي لنصوص الواجهة الثابتة مع حفظ اللغة محلياً. |
+| `i18n.ts` | قاموس عربي/إنجليزي من 425 مفتاحاً يغطي كل شلّ الواجهة، مع حفظ اللغة محلياً. |
 | brain_registry.ts | 4 ملفات عقول محلية ببارامترات حتمية وخريطة نماذج مثبّتة. |
 | repo_indexer.ts | فهرس رموز متعدد اللغات بلا تبعيات مع ميزانية رموز. |
 | surgical_patcher.ts | SEARCH/REPLACE آمن بفحص مسارات وتحقق وتراجع ذري. |
@@ -81,7 +85,7 @@ genesis-omega/
 | enterprise/work_order_engine.ts | آلة حالة persisted لأوامر العمل مع فشل مغلق صريح وبث كل انتقال عبر SSE. |
 | enterprise/repo_ingest.ts | استيعاب مستودع قائم للقراءة فقط مع تدقيق أساس SHA-256 وبوابة ترقية ذرّية للتطوّر/التحصين وبث كل مرحلة عبر SSE. |
 | `*.test.ts` | 27 ملف اختبار تغطي 115 حالة (آخر تشغيل: 115 ناجح، 0 فاشل). |
-| `playwright.config.ts` + `e2e/studio.spec.ts` | 9 اختبارات متصفح E2E منفصلة عن `npm test`. |
+| `playwright.config.ts` + `e2e/studio.spec.ts` | 10 اختبارات متصفح E2E منفصلة عن `npm test`. |
 
 ## مكوّنات الواجهة
 
@@ -98,6 +102,8 @@ genesis-omega/
 | AuthGate.tsx | شاشة الدخول عندما يُضبط OMEGA_API_KEY. |
 | DashboardView.tsx | لوحة قياسات بـ CSS خالص من بيانات المتجر والمتحقق. |
 | EnterpriseView.tsx | تبويب أوامر الشركة: الأقسام العشرة، إنشاء/تشغيل أمر، ومراقبة الانتقالات الحيّة. |
+
+كل مكوّنات الشلّ تستقبل `language` وتمرّر نصوصها الثابتة عبر `t(language, key)`؛ عناوين المشاريع ومخرجات المتحقق تبقى بيانات بلغتها الأصلية. سكربتات `bootstrap.ps1/.sh` لا تغيّر PATH ولا تسحب نماذج إلا بعلم صريح، و`CONTRIBUTING.md` يمنع تعديل `ai_pipeline.ts`.
 
 ## تدفق البيانات
 

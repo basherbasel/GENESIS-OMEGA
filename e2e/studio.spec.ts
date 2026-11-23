@@ -128,6 +128,48 @@ test('تقرير HTML يدعم الطباعة إلى PDF', async ({ request }) =
   expect(body).toContain('تقرير التدقيق');
 });
 
+test('تبديل اللغة يغطي كل العروض بما فيها أوامر الشركة وصيانة المستودعات', async ({ page }) => {
+  await page.goto('/');
+
+  // العربية هي الافتراض: لوحة الشركة + صيانة المستودعات.
+  await page.getByRole('button', { name: 'أوامر الشركة' }).click();
+  await expect(page.getByRole('heading', { name: 'أوامر العمل الهندسية' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'صيانة مستودع قائم' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'تدقيق خط الأساس' })).toBeVisible();
+
+  // الإنجليزية: نفس العروض بلا أي نص عالق بالعربية.
+  await page.getByRole('button', { name: 'English' }).click();
+  await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
+  await expect(page.getByRole('heading', { name: 'Engineering Work Orders' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Maintain existing repository' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Baseline audit' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Evolve & harden' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Production line' }).click();
+  await expect(page.getByRole('button', { name: 'New project' })).toBeVisible();
+  await page.getByRole('button', { name: 'New project' }).click();
+  await expect(page.getByText('Project name')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Launch the production line' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Dashboard', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
+  await page.getByRole('button', { name: 'Folder watch' }).click();
+  await expect(page.getByRole('heading', { name: 'Folder watching & automatic audit' })).toBeVisible();
+  await page.getByRole('button', { name: 'Statistics & knowledge' }).click();
+  await expect(page.getByRole('heading', { name: 'Statistics & knowledge vault' })).toBeVisible();
+  await page.getByRole('button', { name: 'Legacy migration' }).click();
+  await expect(page.getByRole('heading', { name: 'Legacy system migration lab' })).toBeVisible();
+  await page.getByRole('button', { name: 'Solution catalog' }).click();
+  await expect(page.getByRole('heading', { name: 'Engineering solution catalog' })).toBeVisible();
+
+  // العودة إلى العربية تعيد الاتجاه ونصوص الشركة.
+  await page.getByRole('button', { name: 'العربية' }).click();
+  await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
+  await page.getByRole('button', { name: 'أوامر الشركة' }).click();
+  await expect(page.getByRole('heading', { name: 'أوامر العمل الهندسية' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'صيانة مستودع قائم' })).toBeVisible();
+});
+
 test('صيانة مستودع قائم: تدقيق حقيقي ورفض مسار غير آمن وعرض اللوحة', async ({ page, request }) => {
   const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'omega-e2e-ingest-'));
   fs.writeFileSync(
