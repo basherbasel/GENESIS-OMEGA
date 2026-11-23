@@ -239,6 +239,7 @@ function renderAuditReportHtml(params: {
   reasoningBrief: string;
   reportMd: string;
   sbom: unknown;
+  autoPrint?: boolean;
 }): string {
   return `<!doctype html>
 <html lang="ar" dir="rtl"><head><meta charset="utf-8"/>
@@ -248,7 +249,11 @@ h1,h2{border-bottom:1px solid #cbd5e1;padding-bottom:.4rem}
 pre{background:#f8fafc;border:1px solid #e2e8f0;padding:1rem;border-radius:8px;overflow:auto;direction:ltr;text-align:left}
 .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin:1.5rem 0}
 .stat{border:1px solid #cbd5e1;border-radius:8px;padding:.75rem}
+.no-print{position:sticky;top:0;display:flex;justify-content:flex-end;margin-bottom:1rem}
+.no-print button{border:0;border-radius:8px;background:#0f172a;color:#fff;padding:.6rem 1rem;font-size:.85rem;cursor:pointer}
+@media print{body{padding:0;max-width:none}.no-print{display:none}pre{white-space:pre-wrap;word-break:break-word;border:0;background:#fff}}
 </style></head><body>
+<div class="no-print"><button type="button" onclick="window.print()">طباعة / حفظ PDF</button></div>
 <h1>تقرير التدقيق الهندسي والأمني — ${escapeHtml(params.title)}</h1>
 <div class="grid">
   <div class="stat"><div>البيئة</div><strong>${escapeHtml(params.language)}</strong></div>
@@ -262,6 +267,7 @@ pre{background:#f8fafc;border:1px solid #e2e8f0;padding:1rem;border-radius:8px;o
 <pre>${escapeHtml(params.reportMd)}</pre>
 <h2>حزمة SBOM (CycloneDX 1.5)</h2>
 <pre>${escapeHtml(JSON.stringify(params.sbom, null, 2))}</pre>
+${params.autoPrint ? '<script>window.print();</script>' : ''}
 </body></html>`;
 }
 
@@ -2005,6 +2011,7 @@ code{background:#020617;padding:2px 6px;border-radius:4px;color:#38bdf8}</style>
         reasoningBrief: project.reasoningBrief,
         reportMd: project.reportMd,
         sbom: project.sbom,
+        autoPrint: req.query.print === '1',
       }),
     );
   });

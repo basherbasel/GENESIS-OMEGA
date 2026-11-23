@@ -141,9 +141,11 @@ npm run lint && npm test
 - [x] لوحة قياسات `DashboardView` من `dashboard_metrics.ts` — أشرطة CSS بلا مكتبة رسوم.
   - دليل حي من الواجهة: 10 مشاريع، 9 مُتحقّقة، متوسط 95.5/100، 103 اختبار، 503 RPS، توزيع python:8/go:1/cobol:1.
   - 3 اختبارات تجميع نقية (حالة فارغة، تجميع، قياسات/إصلاح).
-- [ ] تصدير PDF من `report/html`.
-- [ ] مفتاح لغة إنجليزية للواجهة.
-- [ ] اختبار Playwright للتدفق الكامل: إنشاء → تحقق → إصلاح → تصدير.
+- [x] تصدير PDF عبر `@media print` + زر `window.print()` في `report/html`، ورابط «حفظ PDF» بـ `?print=1`.
+  - دليل حي: `has_print_button=True`, `has_media_print=True`, `has_title=True`.
+  - حد صريح: PDF يولّده محرك طباعة المتصفح، لا مولّد PDF أصلي — انظر `LIMITATIONS.md`.
+- [ ] مفتاح لغة إنجليزية للواجهة — مؤجل حتى يُطلب صراحةً.
+- [ ] اختبار Playwright E2E — مؤجل: `playwright ABSENT`؛ يحتاج موافقة على dependency وتنزيل متصفح.
 
 ---
 
@@ -227,10 +229,69 @@ npm run lint && npm test
 2. ~~**المرحلة 3ب** — بث SSE بدل `hydrateAll()`.~~ ✅ منجز (`/api/events`).
 3. ~~**المرحلة 3ج** — طابور worker بمعرّف مهمة وحالة.~~ ✅ منجز.
 4. ~~**المرحلة 4أ** — لوحة قياسات من `/api/status` و`/api/projects`.~~ ✅ منجز (`DashboardView`).
-5. **المرحلة 4ب** — تصدير PDF وE2E بـ Playwright، ثم مفتاح لغة ثانٍ إن طُلب.
+5. ~~**المرحلة 4ب (PDF)**~~ ✅ منجز عبر طباعة المتصفح. E2E ولغة ثانية مؤجلان بقرار موثّق.
 6. **ربط `llama-bridge` بخط الإنتاج** — بعد موافقة صريحة، لأنه يلمس `ai_pipeline.ts`.
 
 **قاعدة:** لا تُبدأ خطوة قبل أن يمر `npm run check` ويُحدَّث `INVENTORY.md` والالتزام في نفس الجلسة. Docker و24 نطاقاً ونشر سحابي مؤجلة بقرار في `DECISIONS.md` و`BACKLOG.md`.
+
+## 14. الخريطة الكاملة والحقيقية بعد الإصلاحات
+
+### 14.1 حالة المراحل
+
+| المرحلة | الحالة | المخرج الموثّق |
+|---|---|---|
+| 0 — الأساس | ✅ | هوية `genesis-omega@1.0.0`، Git، 15 ملف توثيق، backup/restore، doctor، check-secrets |
+| 1 — الثقة | ✅ | CI: lint + test + `doctor --ci` + build؛ 22 ملف اختبار |
+| 2 — الأمان | ✅ | `INSECURE_BINDING`، rate limit، Job Object مع `CREATE_SUSPENDED`، فحص أسرار 0 |
+| 3أ — المخزن | ✅ | `omega_store.db` بـ WAL + مرآة JSON، هجرة وإعادة استيراد مُختبرتان |
+| 3ب — البث | ✅ | `/api/events` SSE: ready/state/job + heartbeat |
+| 3ج — الطابور | ✅ | `POST /api/jobs`، states مرئية، عامل تسلسلي واحد |
+| 4أ — اللوحة | ✅ | `DashboardView` بـ CSS خالص من `dashboard_metrics.ts` |
+| 4ب — PDF | ✅ | `@media print` + `window.print()` + رابط `?print=1` |
+| 4ج — E2E/لغة | ⬜ | مؤجل: Playwright غير مثبت، لغة ثانية لم تُطلب |
+
+### 14.2 خريطة الملفات (102 ملف متتبع)
+
+| المسار | Count | الوظيفة |
+|---|---|---|
+| `server.ts` | 1 | Express + كل المسارات + SSE + طابور المهام + خط الإنتاج |
+| `src/App.tsx` + `main.tsx` + `index.css` | 3 | إدارة الواجهة والتنقل والبث المباشر |
+| `src/components/` | 10 | Studio / Dashboard / Vault / Watch / Migration / Catalog / Export / HUD / Nav / Auth |
+| `src/lib/` | 66 | 34 وحدة إنتاج + 22 اختباراً + سكربتات مساعدة |
+| `scripts/` | 5 | backup / restore / doctor / check-secrets / Job Object supervisor |
+| `.github/workflows/ci.yml` | 1 | بوابات CI الأربع |
+| جذر المشروع | 15 | توثيق + إعدادات + مرآة المتجر + حزمة التأمينات |
+
+### 14.3 الخوارزميات الصحيحة المطبّقة
+
+| المشكلة | الحل | الدليل |
+|---|---|---|
+| سباق التفريخ قبل الإسناد | `CREATE_SUSPENDED` ثم `ResumeThread` بعد `AssignProcessToJobObject` | اختبار قتل الأحفاد ناجح |
+| ACCESS_DENIED عند الإسناد اللاحق | `CREATE_BREAKAWAY_FROM_JOB` وإنشاء العملية داخل الـ Job | `ATTACHED alive=True` |
+| قفل ملفات السجل | `FILE_SHARE_READ\|FILE_SHARE_WRITE` + `bInheritHandle` | التقاط `ALIVE` من stdout |
+| فقدان الحالة عند الاستعادة | مرآة JSON + مقارنة hash عند الإقلاع | اختبار `Restored JSON` |
+| تضخم الذاكرة في limiter | تقليم دوري كل 128 فحص | `rate_limit.test.ts` |
+| تداخل التوليد الثقيل | طابور أحادي العامل | `maxInFlight=1` |
+
+### 14.4 البوابات والأوامر
+
+```
+npm run lint        → tsc --noEmit
+npm test            → 95 pass / 0 fail / 0 skipped
+npm run check       → lint + test + check:secrets + doctor = exit 0
+npm run doctor      → critical 9/9
+npm run doctor -- --ci → 4/4 مُنفَّذ + 5 مُعلَن تخطيها
+npm run backup      → MANIFEST + retention 30
+npm run restore -- <dir> --yes → RESTORE_OK
+```
+
+### 14.5 ما لا يُعدّ منجزاً عن قصد
+
+- عزل الشبكة/الملفات داخل الـ Job (دورة الحياة فقط).
+- مولّد PDF أصلي (الطباعة تتم في المتصفح).
+- Playwright وواجهة إنجليزية وربط `llama-bridge` بخط الإنتاج (بانتظار موافقة/طلب).
+- Docker و24 نطاقاً ونشر سحابي (قرار `DECISIONS.md`).
+- إثبات تسليم خارجي (`PROOF.md` فارغ من التسليم).
 
 **التوقيع:** المهندس بشار — owner & executor
 **آخر تحديث:** 23 نوفمبر 2026

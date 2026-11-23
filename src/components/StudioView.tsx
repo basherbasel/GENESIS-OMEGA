@@ -676,6 +676,16 @@ export const StudioView: React.FC<StudioViewProps> = ({
                     <span>تقرير HTML</span>
                   </a>
 
+                  <a
+                    href={`/api/projects/${activeProject.id}/report/html?print=1`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-700 bg-slate-950 px-3 py-1.5 text-xs text-cyan-200 hover:border-cyan-400 whitespace-nowrap"
+                  >
+                    <Printer className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span>حفظ PDF</span>
+                  </a>
+
                   <button
                     type="button"
                     disabled={actionBusy === 'verify'}
