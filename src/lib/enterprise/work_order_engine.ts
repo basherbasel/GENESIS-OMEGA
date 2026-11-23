@@ -22,6 +22,11 @@ import type { PeerReviewResult } from './peer_review_council';
 import type { PrecisionReport } from './precision_verifier';
 import type { EcosystemKey, ExecutionVerifySummary, HealingReport } from '../types';
 import { activeRules, classifyDepartments, mappedBrainRoles, verificationGates, type DepartmentInput } from './departments';
+import {
+  buildLayeredArchitecturePlan,
+  classifyDeepTechMission,
+  type LayeredArchitecturePlan,
+} from './deep_tech_divisions';
 
 export type WorkOrderStage =
   | 'BACKLOG'
@@ -72,6 +77,8 @@ export interface WorkOrder {
   peerReview?: PeerReviewResult;
   precision?: PrecisionReport;
   grounding?: GroundingResult;
+  deepTechDivisions?: string[];
+  architecturePlan?: LayeredArchitecturePlan;
   auditLog: WorkOrderLog[];
   createdAt: string;
   updatedAt: string;
@@ -157,6 +164,8 @@ export class WorkOrderEngine {
 
   create(input: CreateWorkOrderInput): WorkOrder {
     const assignments = classifyDepartments(input);
+    const deepTech = classifyDeepTechMission(input);
+    const architecturePlan = buildLayeredArchitecturePlan(deepTech);
     const now = new Date().toISOString();
     const order: WorkOrder = {
       id: `wo-${Date.now()}-${++this.sequence}`,
@@ -168,9 +177,11 @@ export class WorkOrderEngine {
       activeRules: activeRules(assignments),
       verificationGates: verificationGates(assignments),
       brainRoles: mappedBrainRoles(assignments),
+      deepTechDivisions: deepTech.map((item) => item.division.id),
+      architecturePlan,
       stage: 'BACKLOG',
       files: {},
-      auditLog: [{ stage: 'BACKLOG', at: now, detail: `departments=${orderDepartmentSummary(assignments)}` }],
+      auditLog: [{ stage: 'BACKLOG', at: now, detail: `departments=${orderDepartmentSummary(assignments)}; deepTech=${deepTech.map((d) => d.division.id).join(',')}` }],
       createdAt: now,
       updatedAt: now,
     };
@@ -238,6 +249,11 @@ export class WorkOrderEngine {
       `Target language: ${order.targetLang || order.ecosystemKey}`,
       `Active engineering rules:\n${order.activeRules.join('\n')}`,
       `Required verification gates:\n${order.verificationGates.join('\n')}`,
+      order.architecturePlan
+        ? `Mandatory three-layer architecture:\n${order.architecturePlan.layers
+            .map((layer) => `${layer.id}: ${layer.labelEn} | tech=${layer.technologies.slice(0, 8).join(',')} | divisions=${layer.divisions.join(',')}`)
+            .join('\n')}\nContracts:\n${order.architecturePlan.contracts.slice(0, 8).join('\n')}`
+        : '',
       'Return STRICT JSON: {"architectureSummary":"...","files":[]}. Do not emit any file yet.',
     ].join('\n\n');
     const result = await this.deps.synthesize({ role: 'architect', title: order.title, prompt });

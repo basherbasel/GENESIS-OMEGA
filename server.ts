@@ -91,6 +91,18 @@ import {
 } from './src/lib/runtime/resilience_guard';
 import { DEDICATED_BRAIN_TAGS } from './src/lib/brains/brain_registry';
 import {
+  DEEP_TECH_DIVISIONS,
+  DEEP_TECH_IDS,
+  LAYER_ARCHITECTURE,
+  RE_SUB_TRACKS,
+} from './src/lib/enterprise/deep_tech_divisions';
+import {
+  inspectBinaryArtifact,
+  validateBinaryPath,
+  decodeProtocolFrame,
+  type FrameField,
+} from './src/lib/re_lab/binary_inspector';
+import {
   EVOLVE_MODES,
   evolveAndHardenRepo,
   ingestAndAuditLocalRepository,
@@ -1413,6 +1425,32 @@ async function startServer() {
       if (!next) throw new Error('work order not found');
       return { id: next.id, stage: next.stage };
     },
+    deepTech: async () => ({
+      divisions: DEEP_TECH_IDS.length,
+      layers: LAYER_ARCHITECTURE.length,
+      reTracks: RE_SUB_TRACKS.length,
+    }),
+    inspectBinary: async (binaryPath) => {
+      const validation = validateBinaryPath(binaryPath);
+      if (!validation.ok) throw new Error(`${validation.code}: ${validation.message}`);
+      const result = inspectBinaryArtifact(validation.resolved, {}, runtimeCache);
+      recordAudit('voice_binary_inspect', validation.resolved, {
+        format: result.format,
+        size: result.size,
+        cacheHit: result.cache?.hit === true,
+      });
+      const highEntropy = result.entropy.filter((window) => window.entropy > 7.5).length;
+      return { format: result.format, entropy: highEntropy, cacheHit: result.cache?.hit === true };
+    },
+    launchLayeredOrder: async (goal) => {
+      const order = workOrderEngine.create({
+        title: goal.slice(0, 120),
+        problemStatement: goal,
+        targetLang: 'deep-tech',
+      });
+      const finished = await workOrderEngine.run(order.id);
+      return { id: order.id, stage: finished.stage, layers: finished.architecturePlan?.layers.length || 3 };
+    },
     installedModels: installedBrains,
     onEvent: (event) => {
       studioEvents.publish('voice', event);
@@ -1892,7 +1930,50 @@ code{background:#020617;padding:2px 6px;border-radius:4px;color:#38bdf8}</style>
     res.json({ entries: entries.slice(-50), verification: verifyLedgerIntegrity(entries) });
   });
 
-  // v4: real measured runtime telemetry (no fabricated timings or counters).
+  // v5: seven Deep-Tech R&D divisions + three-layer architecture + RE tracks.
+  app.get('/api/enterprise/deep-tech', (_req, res) => {
+    res.json({
+      divisions: DEEP_TECH_IDS.map((id) => DEEP_TECH_DIVISIONS[id]),
+      layers: LAYER_ARCHITECTURE,
+      reTracks: RE_SUB_TRACKS,
+    });
+  });
+
+  app.post('/api/re/inspect-binary', (req, res) => {
+    const validation = validateBinaryPath(String(req.body?.path || ''));
+    if (!validation.ok) {
+      res.status(400).json({ code: validation.code, error: validation.message });
+      return;
+    }
+    try {
+      const result = inspectBinaryArtifact(validation.resolved, {
+        maxBytes: typeof req.body?.maxBytes === 'number' ? req.body.maxBytes : undefined,
+      }, runtimeCache);
+      recordAudit('re_binary_inspect', validation.resolved, {
+        format: result.format,
+        size: result.size,
+        cacheHit: result.cache?.hit === true,
+      }, result.recommendation.slice(0, 2).join(' | '));
+      res.json(result);
+    } catch (err) {
+      res.status(422).json({
+        code: err instanceof Error && err.message.startsWith('PAYLOAD_TOO_LARGE') ? 'PAYLOAD_TOO_LARGE' : 'INSPECTION_FAILED',
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  });
+
+  app.post('/api/re/decode-frame', (req, res) => {
+    try {
+      const schema = Array.isArray(req.body?.schema) ? (req.body.schema as FrameField[]) : [];
+      const result = decodeProtocolFrame(String(req.body?.hex || ''), schema);
+      recordAudit('re_frame_decode', `${result.bytes}-bytes`, { crcValid: result.crcValid });
+      res.json(result);
+    } catch (err) {
+      res.status(400).json({ code: 'FRAME_DECODE_FAILED', error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
   app.get('/api/runtime/metrics', (_req, res) => {
     const cache = runtimeCache.stats();
     const total = cache.hits + cache.misses;

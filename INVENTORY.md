@@ -5,10 +5,10 @@
 ## طريقة الجرد
 
 ```
-git ls-files | Measure-Object -Line          → 144 ملفاً متتبعاً (بعد هذا الالتزام)
-Get-ChildItem src/lib/**/*.test.ts           → 32 ملف اختبار
-npm test                                     → 146 pass / 0 fail / 0 skipped
-npm run test:e2e                             → 13 pass / 0 fail (Playwright chromium)
+git ls-files | Measure-Object -Line          → 147 ملفاً متتبعاً (بعد هذا الالتزام)
+Get-ChildItem src/lib/**/*.test.ts           → 33 ملف اختبار
+npm test                                     → 153 pass / 0 fail / 0 skipped
+npm run test:e2e                             → 14 pass / 0 fail (Playwright chromium)
 npm run check                                → critical 9/9 · exit 0
 ./scripts/bootstrap.sh --pull-models         → تهيئة لينكس/ماك (سحب النماذج اختياري وصريح)
 ```
@@ -18,15 +18,15 @@ npm run check                                → critical 9/9 · exit 0
 | المجلد | عدد الملفات | المحتوى |
 |---|---|---|
 | `(root)` | 27 | `server.ts`، إعدادات الحزمة، 17 ملف توثيق (منها `INVENTORY.md`)، `LICENSE`، `CONTRIBUTING.md`، `.gitignore`، `.env.example`، `models.config.json`، `package-lock.json`. |
-| `src` | 104 | `App.tsx`، `main.tsx`، `index.css`، 12 مكوّنات، وحدات `lib` + `lib/brains` (6) + `lib/enterprise` (8) + `lib/runtime` (3) + `lib/security` (3) + `lib/voice` (4)، 32 ملف اختبار (ضمن الـ 104). |
+| `src` | 107 | `App.tsx`، `main.tsx`، `index.css`، 12 مكوّنات، وحدات `lib` + `lib/brains` (6) + `lib/enterprise` (9) + `lib/re_lab` (2) + `lib/runtime` (3) + `lib/security` (3) + `lib/voice` (4)، 33 ملف اختبار (ضمن الـ 107). |
 | `scripts` | 8 | `backup.ts`, `restore.ts`, `doctor.ts`, `check-secrets.ts`, `windows_job_sandbox.ps1`, `bootstrap.ps1`, `bootstrap.sh`, `vosk_transcribe.mjs`. |
 | `models` | 4 | `models/brains/Modelfile.architect|coder|healer|auditor` — قوالب Ollama متتبعة؛ الأوزان الثنائية مستبعدة. |
 | `.github` | 1 | `workflows/ci.yml`. |
-| `e2e` | 1 | `studio.spec.ts` — 13 اختبار متصفح حقيقية عبر Playwright (منها شريط قياسات v4). |
+| `e2e` | 1 | `studio.spec.ts` — 14 اختبار متصفح حقيقية عبر Playwright (منها مختبر v5 ثنائي اللغة). |
 | `(root)` | — | `playwright.config.ts` لإعداد المتصفح والخادم. |
 | `public` | 2 | أصول المنصة الأصلية. |
 
-## سجل الاختبارات (32 ملفاً / 146 اختباراً)
+## سجل الاختبارات (33 ملفاً / 153 اختباراً)
 
 | الملف | عدد الحالات | ما يغطيه |
 |---|---|---|
@@ -45,7 +45,7 @@ npm run check                                → critical 9/9 · exit 0
 | `healer.test.ts` | 5 | تشخيص ورقع وتحقق ورفض تحسين غير مُقاس. |
 | `job_queue.test.ts` | 3 | تسلسل المهام، فشل معزول، أحداث الحالة. |
 | `integrity.test.ts` | 5 | SHA-256 وحارس المسارات وتسريب المتغيرات. |
-| `i18n.test.ts` | 3 | اكتمال الترجمات (512 مفتاحاً عربياً/إنجليزياً)، التبديل والتنسيق، رفض لغة غير معروفة. |
+| `i18n.test.ts` | 3 | اكتمال الترجمات (536 مفتاحاً عربياً/إنجليزياً)، التبديل والتنسيق، رفض لغة غير معروفة. |
 | `llama-bridge.test.ts` | 4 | mutex، timeout 100ms، MODEL_NOT_FOUND، ABORTED. |
 | `local_models.test.ts` | 6 | كتالوج 34 نموذجاً، توجيه محلي، عميل Ollama، معرّفات Gemini. |
 | `local_synthesis.test.ts` | 3 | توليد عبر الجسر، رفض المسارات، فشل مغلق بلا سحابة. |
@@ -59,7 +59,8 @@ npm run check                                → critical 9/9 · exit 0
 | `store_repository.test.ts` | 3 | WAL، هجرة JSON، إعادة استيراد بعد restore، فشل مغلق لمرآة تالفة. |
 | `store_schema.test.ts` | 2 | قبول متجر صالح ورفض تالف بمخطط Zod. |
 | `watcher.test.ts` | 2 | رفض المسارات النظامية، كشف تغيير SHA-256. |
-| `voice/voice_dialogue.test.ts` | 11 | كشف اللغة بالـ Unicode، توجيه الأوامر ثنائي اللغة، تنفيذ أو فشل مغلق، الحوار عبر الجسر، نماذج Piper، STT، ونوايا v3 (رسم/سجل/تلوث). |
+| `voice/voice_dialogue.test.ts` | 12 | كشف اللغة، توجيه الأوامر، تنفيذ أو فشل مغلق، الحوار عبر الجسر، نماذج Piper، STT، ونوايا v3/v5 (رسم/سجل/تلوث/أقسام/فحص ثنائي/أمر طبقي). |
+| `re_lab/binary_inspector.test.ts` | 7 | رؤوس ELF/PE/Android/GPT/GGUF، إنتروبيا شانون، فك حزمة مع CRC-16، حارس المسار، كاش SHA-256، تصنيف 7 أقسام و3 طبقات. |
 | `runtime/v4_runtime.test.ts` | 7 | حل العقول المخصصة، كشف هلوسة الاستيراد/الرموز، محرك JSON الصارم، ذاكرة SHA-256 مع إبطال ببايت واحد، ضاغط السياق، كاسر الركود، قتل شجرة العمليات وتنظيف المساحات. |
 | `security/security_v3.test.ts` | 3 | تتبّع تلوث عبر 8 لغات بأكواد CWE، مرور الكود المُطهَّر، كشف العبث بسجل التجزئة المتسلسل. |
 
@@ -67,8 +68,8 @@ npm run check                                → critical 9/9 · exit 0
 
 ```
 npm run lint         → tsc --noEmit
-npm test             → 146/146
-npm run test:e2e     → 13/13 (Playwright)
+npm test             → 153/153
+npm run test:e2e     → 14/14 (Playwright)
 npm run check:secrets→ SECRETS_OK findings=0
 npm run doctor       → critical 9/9
 npm run doctor -- --ci → critical 4/4 · 5 skipped (مُعلن)
@@ -84,6 +85,9 @@ POST /api/enterprise/graph      → cycles / buildOrder / blastRadius
 POST /api/security/taint-scan   → CWE findings + ledger entry
 GET  /api/security/ledger       → entries + verifyLedgerIntegrity()
 GET  /api/runtime/metrics        → cache hit rate / savedMs / blocked / stagnation / brains / workspaces
+GET  /api/enterprise/deep-tech   → 7 divisions / 3 layers / 5 RE sub-tracks
+POST /api/re/inspect-binary      → header + entropy + strings + audit ledger entry
+POST /api/re/decode-frame        → field schema + CRC-16 verification
 scripts/bootstrap.sh --create-brains  → ollama create omega-{architect,coder,healer,auditor}
 ```
 

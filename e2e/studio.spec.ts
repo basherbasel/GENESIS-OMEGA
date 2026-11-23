@@ -267,6 +267,31 @@ test('شريط القياسات اللحظي يعرض بيانات /api/runtime/
   await expect(strip).toContainText('Cache hit rate');
 });
 
+test('مختبر البحث والتطوير والهندسة العكسية يعرض الأقسام السبعة والطبقات بلغتين', async ({ page, request }) => {
+  const response = await request.get('/api/enterprise/deep-tech');
+  expect(response.ok()).toBeTruthy();
+  const data = await response.json();
+  expect(data.divisions).toHaveLength(7);
+  expect(data.layers).toHaveLength(3);
+  expect(data.reTracks).toHaveLength(5);
+
+  await page.goto('/');
+  await page.getByRole('button', { name: 'أوامر الشركة' }).click();
+  const lab = page.getByTestId('enterprise-v5-lab');
+  await expect(lab).toBeVisible();
+  await expect(lab).toContainText('مختبر البحث والتطوير والهندسة العكسية');
+  await expect(page.getByTestId('v5-divisions')).toContainText('الأنظمة والمستوى المنخفض وتجريد العتاد');
+  await expect(page.getByTestId('v5-layers')).toContainText('الطبقة السفلى');
+  await expect(page.getByTestId('v5-inspector')).toBeVisible();
+
+  await page.getByRole('button', { name: 'English' }).click();
+  await expect(lab).toContainText('Deep-Tech R&D & Reverse Engineering Lab');
+  await expect(page.getByTestId('v5-divisions')).toContainText('Systems, Low-Level & Hardware Abstraction');
+  await expect(page.getByTestId('v5-layers')).toContainText('Layer 1');
+  await expect(page.getByRole('button', { name: 'Inspect file' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Decode frame' })).toBeVisible();
+});
+
 test('صيانة مستودع قائم: تدقيق حقيقي ورفض مسار غير آمن وعرض اللوحة', async ({ page, request }) => {
   const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'omega-e2e-ingest-'));
   fs.writeFileSync(

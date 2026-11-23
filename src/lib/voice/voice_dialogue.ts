@@ -25,6 +25,9 @@ export type VoiceIntent =
   | 'ledger_verify'
   | 'taint_scan'
   | 'order_control'
+  | 'deep_tech_divisions'
+  | 're_inspect'
+  | 'layered_order'
   | 'dialogue';
 
 export interface VoiceDialogueEvent {
@@ -64,6 +67,9 @@ export interface VoiceDialogueDeps {
   ledger?: () => Promise<{ valid: boolean; entries: number; detail?: string }>;
   taint?: (repoPath?: string) => Promise<{ findings: number; cwes: string[] }>;
   orderControl?: (action: 'approve' | 'cancel', id?: string) => Promise<{ id: string; stage: string }>;
+  deepTech?: () => Promise<{ divisions: number; layers: number; reTracks: number }>;
+  inspectBinary?: (binaryPath: string) => Promise<{ format: string; entropy: number; cacheHit: boolean }>;
+  launchLayeredOrder?: (goal: string) => Promise<{ id: string; stage: string; layers: number }>;
   installedModels?: ReadonlySet<string>;
   model?: string;
   synthesizeText?: typeof synthesizeTextWithBridge;
@@ -105,6 +111,15 @@ export function detectSpokenLanguage(text: string): Language {
 export function routeVoiceIntent(text: string, lang: Language): VoiceIntent {
   const value = (text || '').toLowerCase();
 
+  if (/(?:ال)?(?:ثلاث|3)[-\s]*(?:ال)?(?:طبقات|طبقة)/.test(value) || /(?:ابن[ِيْ]?|أنشئ|ابدأ|أطلق).*(بحث|تطوير|r&d)/.test(value) || /\b(build|create|launch)\b.*\b(3-layer|three-layer|deep-tech|r&d)\b/.test(value)) {
+    return 'layered_order';
+  }
+  if (/(أقسام|قائمة).*(بحث|تطوير|عميقة|r&d)/.test(value) || /البنية ثلاثية الطبقات/.test(value) || /\b(deep.tech divisions|r&d divisions)\b/.test(value)) {
+    return 'deep_tech_divisions';
+  }
+  if (/(ثنائي|بايت|firmware|ملف مترجم|هندسة عكسية)/.test(value) || /\b(inspect|analyze)\b.*\b(binary|firmware|elf|pe|gguf|boot\.img)\b/.test(value)) {
+    return 're_inspect';
+  }
   if (/(أمر\s*عمل|ابن[ِيْ]?\s+[\p{L}0-9]+|أنشئ\s+[\p{L}0-9]+|اصنع\s+[\p{L}0-9]+|ابدأ\s+[\p{L}0-9]+)/u.test(value) && /(نظام|خدمة|مشروع|أمر|تطبيق|بنية)/.test(value)) {
     return 'work_order';
   }
@@ -382,6 +397,38 @@ export async function processVoiceDialogue(
         t(lang, 'voice.orderControlled', { action, id: controlled.id, stage: controlled.stage }),
         true,
         { kind: 'order_control', action, ...controlled },
+      );
+    }
+
+    if (intent === 'deep_tech_divisions') {
+      if (!deps.deepTech) return done(t(lang, 'voice.actionUnavailable'), false, null, 'ACTION_UNAVAILABLE');
+      const info = await deps.deepTech();
+      return done(
+        t(lang, 'voice.deepTechSummary', { divisions: info.divisions, layers: info.layers, tracks: info.reTracks }),
+        true,
+        { kind: 'deep_tech_divisions', ...info },
+      );
+    }
+
+    if (intent === 're_inspect') {
+      if (!deps.inspectBinary) return done(t(lang, 'voice.actionUnavailable'), false, null, 'ACTION_UNAVAILABLE');
+      const binaryPath = extractRepoPath(utterance);
+      if (!binaryPath) return done(t(lang, 'voice.repoPathMissing'), false, null, 'REPO_PATH_MISSING');
+      const result = await deps.inspectBinary(binaryPath);
+      return done(
+        t(lang, 'voice.reInspectResult', { format: result.format, entropy: result.entropy, cache: result.cacheHit ? t(lang, 'voice.hud.sttReady') : t(lang, 'voice.hud.sttOff') }),
+        true,
+        { kind: 're_inspect', ...result },
+      );
+    }
+
+    if (intent === 'layered_order') {
+      if (!deps.launchLayeredOrder) return done(t(lang, 'voice.actionUnavailable'), false, null, 'ACTION_UNAVAILABLE');
+      const created = await deps.launchLayeredOrder(utterance);
+      return done(
+        t(lang, 'voice.layeredOrderCreated', { id: created.id, stage: created.stage, layers: created.layers }),
+        true,
+        { kind: 'layered_order', ...created },
       );
     }
   } catch (err) {

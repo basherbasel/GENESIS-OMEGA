@@ -352,3 +352,36 @@ test('v3 voice intents report blast radius, ledger integrity and taint findings 
     fs.rmSync(repo, { recursive: true, force: true });
   }
 });
+
+test('v5 voice intents query deep-tech divisions, inspect binaries and launch layered orders', async () => {
+  assert.equal(routeVoiceIntent('ما أقسام البحث والتطوير العميقة؟', 'ar'), 'deep_tech_divisions');
+  assert.equal(routeVoiceIntent('List the deep-tech R&D divisions', 'en'), 'deep_tech_divisions');
+  assert.equal(routeVoiceIntent('افحص الملف الثنائي في "firmware.bin"', 'ar'), 're_inspect');
+  assert.equal(routeVoiceIntent('Inspect binary firmware.bin', 'en'), 're_inspect');
+  assert.equal(routeVoiceIntent('ابنِ نظام ثلاث الطبقات للتحقق', 'ar'), 'layered_order');
+  assert.equal(routeVoiceIntent('Build a three-layer deep-tech system', 'en'), 'layered_order');
+
+  const deps: VoiceDialogueDeps = {
+    deepTech: async () => ({ divisions: 7, layers: 3, reTracks: 5 }),
+    inspectBinary: async () => ({ format: 'elf', entropy: 2, cacheHit: true }),
+    launchLayeredOrder: async (goal) => ({ id: 'wo-v5-1', stage: 'BACKLOG', layers: 3, goal }),
+  };
+
+  const divisions = await processVoiceDialogue({ transcript: 'List the deep-tech R&D divisions' }, deps);
+  assert.equal(divisions.intent, 'deep_tech_divisions');
+  assert.match(divisions.replyText, /7/);
+
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'omega-voice-bin-'));
+  try {
+    const inspected = await processVoiceDialogue({ transcript: `Inspect binary "${repo}/fw.bin"` }, deps);
+    assert.equal(inspected.intent, 're_inspect');
+    assert.match(inspected.replyText, /elf/);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+
+  const order = await processVoiceDialogue({ transcript: 'Build a three-layer deep-tech system' }, deps);
+  assert.equal(order.intent, 'layered_order');
+  assert.equal(order.actionResult?.layers, 3);
+  assert.match(order.replyText, /wo-v5-1/);
+});

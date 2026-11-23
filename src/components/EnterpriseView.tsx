@@ -98,6 +98,40 @@ interface RuntimeMetrics {
   workspaces: { activeJobs: number; cleaned: number; lastSweepAt: string | null; detail: string };
 }
 
+interface DeepTechDivision {
+  id: string;
+  labelAr: string;
+  labelEn: string;
+  languages: string[];
+  toolchains: string[];
+  deliverables: string[];
+  integrationContracts: string[];
+  layers: string[];
+}
+
+interface DeepTechData {
+  divisions: DeepTechDivision[];
+  layers: Array<{ id: string; labelAr: string; labelEn: string; technologies: string[] }>;
+  reTracks: Array<{ id: string; labelAr: string; labelEn: string; tools: string[] }>;
+}
+
+interface BinaryInspectionSummary {
+  file: string;
+  size: number;
+  format: string;
+  header: Record<string, string | number>;
+  entropy: Array<{ offset: number; entropy: number; classification: string }>;
+  strings: Array<{ offset: number; value: string }>;
+  recommendation: string[];
+  cache?: { hit: boolean; durationMs: number };
+}
+
+interface DecodedFrame {
+  bytes: number;
+  fields: Array<{ name: string; type: string; offset: number; value: number | null; valid?: boolean }>;
+  crcValid: boolean | null;
+}
+
 const TERMINAL_INGEST_STAGES = new Set(['PROMOTED', 'FAILED_CLOSED', 'NO_CHANGES']);
 
 interface EnterpriseViewProps {
@@ -126,19 +160,28 @@ export const EnterpriseView: React.FC<EnterpriseViewProps> = ({ language }) => {
   const [ledger, setLedger] = useState<LedgerVerification | null>(null);
   const [v3Busy, setV3Busy] = useState(false);
   const [metrics, setMetrics] = useState<RuntimeMetrics | null>(null);
+  const [deepTech, setDeepTech] = useState<DeepTechData | null>(null);
+  const [binaryPath, setBinaryPath] = useState('');
+  const [inspection, setInspection] = useState<BinaryInspectionSummary | null>(null);
+  const [frameHex, setFrameHex] = useState('010300000002c40b');
+  const [frameSchema, setFrameSchema] = useState('[{"name":"slave","type":"uint8"},{"name":"func","type":"uint8"},{"name":"start","type":"uint16be"},{"name":"count","type":"uint16be"},{"name":"crc","type":"crc16_modbus"}]');
+  const [frameResult, setFrameResult] = useState<DecodedFrame | null>(null);
+  const [v5Busy, setV5Busy] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
-      const [depRes, orderRes, runRes, metricsRes] = await Promise.all([
+      const [depRes, orderRes, runRes, metricsRes, deepTechRes] = await Promise.all([
         fetch('/api/enterprise/departments'),
         fetch('/api/enterprise/work-orders'),
         fetch('/api/enterprise/ingest/runs'),
         fetch('/api/runtime/metrics'),
+        fetch('/api/enterprise/deep-tech'),
       ]);
       if (depRes.ok) setDepartments(((await depRes.json()) as { departments: Department[] }).departments);
       if (orderRes.ok) setOrders(((await orderRes.json()) as { workOrders: WorkOrder[] }).workOrders);
       if (runRes.ok) setRuns(((await runRes.json()) as { runs: IngestRun[] }).runs);
       if (metricsRes.ok) setMetrics((await metricsRes.json()) as RuntimeMetrics);
+      if (deepTechRes.ok) setDeepTech((await deepTechRes.json()) as DeepTechData);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'request failed');
@@ -292,6 +335,50 @@ export const EnterpriseView: React.FC<EnterpriseViewProps> = ({ language }) => {
       setError(err instanceof Error ? err.message : 'ledger check failed');
     } finally {
       setV3Busy(false);
+    }
+  };
+
+  const inspectBinaryFile = async () => {
+    const pathValue = binaryPath.trim();
+    if (pathValue.length < 2) {
+      setError(tr('v5.lab.invalidPath'));
+      return;
+    }
+    setV5Busy(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/re/inspect-binary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: pathValue }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(`${data.code ? `${data.code}: ` : ''}${data.error || 'inspection failed'}`);
+      setInspection(data as BinaryInspectionSummary);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'inspection failed');
+    } finally {
+      setV5Busy(false);
+    }
+  };
+
+  const decodeFrame = async () => {
+    setV5Busy(true);
+    setError(null);
+    try {
+      const schema = JSON.parse(frameSchema) as unknown;
+      const response = await fetch('/api/re/decode-frame', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hex: frameHex.trim(), schema }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(`${data.code ? `${data.code}: ` : ''}${data.error || 'decode failed'}`);
+      setFrameResult(data as DecodedFrame);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'decode failed');
+    } finally {
+      setV5Busy(false);
     }
   };
 
@@ -602,6 +689,99 @@ export const EnterpriseView: React.FC<EnterpriseViewProps> = ({ language }) => {
             <p className="text-[11px] text-slate-500">{tr('ent.graph.noResult')}</p>
           )}
         </div>
+      </section>
+
+      <section
+        className="rounded-lg border border-slate-800 bg-slate-950/60 p-4 space-y-3"
+        aria-label={tr('v5.lab.title')}
+        data-testid="enterprise-v5-lab"
+      >
+        <header className="space-y-1">
+          <h2 className="text-sm font-semibold text-slate-100">{tr('v5.lab.title')}</h2>
+          <p className="text-[11px] text-slate-500">{tr('v5.lab.hint')}</p>
+        </header>
+
+        <div className="grid gap-3 lg:grid-cols-3">
+          <div className="space-y-1" data-testid="v5-divisions">
+            <h3 className="text-[11px] font-medium text-cyan-300">{tr('v5.lab.divisions')}</h3>
+            {deepTech?.divisions.map((division) => (
+              <div key={division.id} className="rounded border border-slate-800 px-2 py-1 text-[11px] text-slate-300">
+                {language === 'ar' ? division.labelAr : division.labelEn}
+                <span className="ms-2 font-mono text-slate-500">{division.languages.join(' · ')}</span>
+              </div>
+            )) || <p className="text-[11px] text-slate-500">{tr('v5.lab.noResult')}</p>}
+          </div>
+
+          <div className="space-y-1" data-testid="v5-layers">
+            <h3 className="text-[11px] font-medium text-cyan-300">{tr('v5.lab.layers')}</h3>
+            {deepTech?.layers.map((layer, index) => (
+              <div key={layer.id} className="rounded border border-slate-800 px-2 py-1 text-[11px] text-slate-300">
+                L{index + 1}: {language === 'ar' ? layer.labelAr : layer.labelEn}
+                <div className="font-mono text-[10px] text-slate-500">{layer.technologies.slice(0, 6).join(' · ')}</div>
+              </div>
+            )) || <p className="text-[11px] text-slate-500">{tr('v5.lab.noResult')}</p>}
+            <h3 className="pt-2 text-[11px] font-medium text-cyan-300">{tr('v5.lab.reTracks')}</h3>
+            <p className="font-mono text-[10px] text-slate-500">
+              {deepTech?.reTracks.map((track) => (language === 'ar' ? track.labelAr : track.labelEn)).join(' · ') || '—'}
+            </p>
+          </div>
+
+          <div className="space-y-2" data-testid="v5-inspector">
+            <h3 className="text-[11px] font-medium text-cyan-300">{tr('v5.lab.inspector')}</h3>
+            <input
+              value={binaryPath}
+              onChange={(event) => setBinaryPath(event.target.value)}
+              placeholder={tr('v5.lab.path')}
+              className="w-full rounded border border-slate-700 bg-slate-900 px-2 py-1.5 text-xs text-slate-100"
+            />
+            <button
+              type="button"
+              disabled={v5Busy}
+              onClick={() => void inspectBinaryFile()}
+              className="rounded bg-cyan-500 px-3 py-1.5 text-xs font-semibold text-slate-950 disabled:opacity-50"
+            >
+              {tr('v5.lab.inspect')}
+            </button>
+            {inspection ? (
+              <div className="space-y-1 text-[11px] text-slate-300" data-testid="v5-inspection-result">
+                <div>{tr('v5.lab.format')}: <span className="font-mono text-cyan-400">{inspection.format}</span></div>
+                <div>{tr('v5.lab.entropy')}: {inspection.entropy.length} · {tr('v5.lab.strings')}: {inspection.strings.length}</div>
+                <div>{inspection.cache?.hit ? tr('v5.lab.cacheHit') : tr('v5.lab.cacheMiss')}</div>
+                <div className="text-slate-500">{tr('v5.lab.recommendation')}: {inspection.recommendation[0]}</div>
+              </div>
+            ) : (
+              <p className="text-[11px] text-slate-500">{tr('v5.lab.noResult')}</p>
+            )}
+          </div>
+        </div>
+
+        <div className="grid gap-2 lg:grid-cols-3" data-testid="v5-frame-decoder">
+          <input
+            value={frameHex}
+            onChange={(event) => setFrameHex(event.target.value)}
+            placeholder={tr('v5.lab.frameHex')}
+            className="rounded border border-slate-700 bg-slate-900 px-2 py-1.5 font-mono text-xs text-slate-100"
+          />
+          <input
+            value={frameSchema}
+            onChange={(event) => setFrameSchema(event.target.value)}
+            placeholder={tr('v5.lab.frameSchema')}
+            className="rounded border border-slate-700 bg-slate-900 px-2 py-1.5 font-mono text-xs text-slate-100"
+          />
+          <button
+            type="button"
+            disabled={v5Busy}
+            onClick={() => void decodeFrame()}
+            className="rounded border border-emerald-700 px-3 py-1.5 text-xs text-emerald-300 disabled:opacity-50"
+          >
+            {tr('v5.lab.decode')}
+          </button>
+        </div>
+        {frameResult && (
+          <div className="rounded border border-slate-800 px-2 py-1.5 text-[11px] text-slate-300" data-testid="v5-frame-result">
+            {tr('v5.lab.frameResult')}: {frameResult.bytes} bytes · {tr('v5.lab.crc')}: {String(frameResult.crcValid)}
+          </div>
+        )}
       </section>
     </main>
   );

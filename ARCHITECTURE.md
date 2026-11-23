@@ -35,6 +35,7 @@ genesis-omega/
 │   ├── lib/enterprise/        الأقسام العشرة وآلة حالة أوامر العمل وصيانة المستودعات ومجلس المراجعة ومقياس الدقة (v2/v3).
 │   ├── lib/security/          حارس المسارات وفاحص التلوث متعدد اللغات والسجل المشفر متسلسل التجزئة.
 │   ├── lib/runtime/           ذاكرة SHA-256، ضاغط سياق، بوابة صياغة، كاسر ركود وحارس عمليات (v4).
+│   ├── lib/re_lab/            فاحص ثنائي/برمجي/بروتوكولي بمسارات حارسية وكاش محتوى (v5).
 │   └── lib/voice/             توجيه نوايا ثنائي اللغة، حوار محلي، STT محلي، تطهير بيئة العمليات.
 ├── data/                      حالة التشغيل: omega_store.db (WAL) + مرآة omega_store.json + workspaces/exports/voice_cache.
 ├── backups/                   نسخ احتياطية موسومة بالطابع الزمني.
@@ -42,7 +43,7 @@ genesis-omega/
 ├── models/brains/Modelfile.*  أربعة قوالب Ollama للعقول omega-* (الأوزان *.gguf مستبعدة).
 ├── public/assets/aistudio/    أصول واجهة المنصة الأصلية.
 ├── playwright.config.ts       إعداد Playwright: webServer + chromium + baseURL.
-├── e2e/studio.spec.ts         13 اختبار E2E حقيقية (تنقل/لغة/لوحة/نموذج/SSE/أقسام/أمر عمل/PDF/صيانة/تبديل/حوار/لوحات v3/قياسات v4).
+├── e2e/studio.spec.ts         14 اختبار E2E حقيقية (تنقل/لغة/لوحة/نموذج/SSE/أقسام/أمر عمل/PDF/صيانة/تبديل/حوار/لوحات v3/قياسات v4/مختبر v5).
 └── .github/workflows/ci.yml   install + lint + test + doctor --ci + build.
 ```
 
@@ -77,6 +78,8 @@ genesis-omega/
 | brains/anti_hallucination.ts | تثبيت واردات/رموز حقيقي وخاص بـ JSON/PATCH صارم يمنع الهلوسة قبل التحويل. |
 | runtime/fast_cache.ts | ذاكرة محتوى SHA-256 بـ LRU 256، ضاغط سياق، بوابة صياغة سريعة. |
 | runtime/resilience_guard.ts | كاسر ركود الإصلاح، قتل شجرة العمليات، تنظيف المساحات القديمة. |
+| enterprise/deep_tech_divisions.ts | 7 أقسام R&D عميقة، تصنيف حتمي، وخطة معمارية إلزامية بثلاث طبقات. |
+| re_lab/binary_inspector.ts | رؤوس ثنائية/برمجية، إنتروبيا، نصوص، فك حزم بروتوكول مع CRC-16 وحارس مسار. |
 | solution_catalog.ts | 24 نطاق حل emits حزمة كاملة قابلة للتحقق. |
 | toolchain_doctor.ts | يفحص توفر أدوات الأنظمة والبيئات لكل لغة. |
 | types.ts | العقود المشتركة: ProjectRecord وGovernorStats أنواع الواجهة. |
@@ -87,7 +90,7 @@ genesis-omega/
 | store_schema.ts | مخطط Zod يمنع تحميل متجر تالف قبل استخدام حقوله. |
 | verifier.ts | يشغّل اختبارات نظام التشغيل الفعلية ويمنع أرقاماً مُختلقة. |
 | watcher.ts | يراقب المجلدات ويقارن SHA-256 ويُطلق تدقيقاً عند التغيير. |
-| `i18n.ts` | قاموس عربي/إنجليزي من 512 مفتاحاً يغطي كل شلّ الواجهة والحوار الصوتي ولوحات v3/v4، مع حفظ اللغة محلياً. |
+| `i18n.ts` | قاموس عربي/إنجليزي من 536 مفتاحاً يغطي كل شلّ الواجهة والحوار الصوتي ولوحات v3/v4/v5، مع حفظ اللغة محلياً. |
 | brain_registry.ts | 4 ملفات عقول محلية ببارامترات حتمية وخريطة نماذج مثبّتة. |
 | repo_indexer.ts | فهرس رموز متعدد اللغات بلا تبعيات مع ميزانية رموز. |
 | surgical_patcher.ts | SEARCH/REPLACE آمن بفحص مسارات وتحقق وتراجع ذري. |
@@ -100,8 +103,8 @@ genesis-omega/
 | voice/voice_dialogue.ts | كشف لغة المتحدث، توجيه نوايا حتمي (أمر عمل/مستودع/إصلاح/لغة/دكتور/ملخص) وحوار محلي عبر `local_synthesis` بفشل مغلق. |
 | voice/offline_stt.ts | تفريغ صوتي محلي اختياري (Whisper/Vosk) بسقف بايتات وبيئة معقّمة و`STT_NOT_CONFIGURED`. |
 | voice/voice_process.ts | تطهير بيئة العمليات الفرعية وإدارة حمولة الصوت وامتداداته. |
-| `*.test.ts` | 32 ملف اختبار تغطي 146 حالة (آخر تشغيل: 146 ناجح، 0 فاشل). |
-| `playwright.config.ts` + `e2e/studio.spec.ts` | 13 اختبارات متصفح E2E منفصلة عن `npm test`. |
+| `*.test.ts` | 33 ملف اختبار تغطي 153 حالة (آخر تشغيل: 153 ناجح، 0 فاشل). |
+| `playwright.config.ts` + `e2e/studio.spec.ts` | 14 اختبارات متصفح E2E منفصلة عن `npm test`. |
 
 ## مكوّنات الواجهة
 
@@ -137,3 +140,4 @@ genesis-omega/
 11. قبل الترقية: `dependency_graph` يحدّد المتأثرين ويمرّر سياقاً مركّزاً إلى `coder`/`healer`، ثم `peer_review_council` يراجع ويعالج، ثم `precision_verifier` يقيس الزمن/RSS والتكرار والحدود — أي فشل CRITICAL/HIGH يُغلق دون كتابة.
 12. فحص التلوث `taint_scanner` يعمل في مرحلة `SECURITY_AUDIT` لأوامر العمل وفي تدقيق المستودعات، وكل نتيجة/ترقية/إجراء صوتي يُسجَّل في `audit_ledger` بسلسلة تجزئة ويُبثّ على `ledger` over SSE.
 13. v4: `anti_hallucination` يفحص الواردات والرموز قبل أي تحقق OS، ثم `fast_cache` يعيد استخدام نتائج الرسم/التلوث للملفات غير المعدّلة، ثم `fast_fail syntax gate` يفحص الصياغة قبل تشغيل الاختبارات الكاملة؛ `resilience_guard` يوقف دورات الإصلاح الراكدة ويقتل أشجار العمليات وينظّف المساحات القديمة. `/api/runtime/metrics` يقرأ كل هذه العدّادات الحقيقية.
+14. v5: أوامر العمل العميقة تُصنَّف تلقائياً إلى 7 أقسام وتحصل على خطة ثلاثية الطبقات؛ `/api/re/inspect-binary` يفحص الملف بمسار حارسى وكاش SHA-256 ويسجّل النتيجة في `audit_ledger`، و`/api/re/decode-frame` يفك الحزم حسب مخطط حقول صريح مع تحقق CRC-16.

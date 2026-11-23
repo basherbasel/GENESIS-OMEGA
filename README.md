@@ -11,8 +11,8 @@ sh scripts/bootstrap.sh --pull-models    # يسحب النماذج صراحةً 
 npm install
 cp .env.example .env.local   # أضف GEMINI_API_KEY اختيارياً للتوليد السحابي
 npm run dev                  # http://127.0.0.1:3000
-npm test                     # 146 اختبار وحدة/تكامل
-npm run test:e2e             # 13 اختبار متصفح حقيقية (Playwright)
+npm test                     # 153 اختبار وحدة/تكامل
+npm run test:e2e             # 14 اختبار متصفح حقيقية (Playwright)
 npm run check                # lint + test + secrets + doctor
 ```
 
@@ -235,9 +235,24 @@ curl http://localhost:3000/api/runtime/metrics
 
 The metrics endpoint reports only measured data: SHA-256 cache hits/misses and saved milliseconds, blocked hallucination count, stagnation breaks, dedicated-brain resolution, and cleaned workspaces. Generated code is grounded against real imports/symbols before compilation, unchanged files reuse cached graph/taint results, and the healing loop stops on repeated error signatures.
 
+## v5 Deep-Tech R&D & Reverse Engineering Lab
+
+Seven specialized divisions (low-level/HAL, physics, local edge AI, algorithms/DSP, 3D HMI, HIL/DevOps and binary/firmware/protocol RE) are classified deterministically into a mandatory three-layer plan: C/C++/Rust core → FastAPI/pybind11/llama.cpp/ONNX middleware → React/Three.js/PyQt6 telemetry HMI.
+
+```bash
+curl http://localhost:3000/api/enterprise/deep-tech
+curl -X POST http://localhost:3000/api/re/inspect-binary \
+  -H 'Content-Type: application/json' -d '{"path":"E:\\firmware.bin"}'
+curl -X POST http://localhost:3000/api/re/decode-frame \
+  -H 'Content-Type: application/json' \
+  -d '{"hex":"010300000002c40b","schema":[{"name":"slave","type":"uint8"},{"name":"func","type":"uint8"},{"name":"start","type":"uint16be"},{"name":"count","type":"uint16be"},{"name":"crc","type":"crc16_modbus"}]}'
+```
+
+Inspection is strictly defensive/interoperability-oriented: canonical path guards, 32 MiB cap, real ELF/PE/Mach-O/Android boot/GPT/GGUF header parsing, Shannon entropy windows, offset-tagged strings, CRC-16 frame decoding, SHA-256 cache reuse and audit-ledger records. No payload generation or DRM bypass.
+
 ## Verification & integrity policy
 
-- `npm test` runs **every** unit/integration test file under `src/lib/*.test.ts` (32 files, 146 cases). Browser tests are separate: `npm run test:e2e` (13 cases, including v4 runtime telemetry). It is the
+- `npm test` runs **every** unit/integration test file under `src/lib/*.test.ts` (33 files, 153 cases). Browser tests are separate: `npm run test:e2e` (14 cases, including the v5 bilingual RE lab). It is the
   canonical check; `npm run lint` / `npx tsc --noEmit` must also pass with zero errors.
 - Verification reports count **only tests the OS runner actually executed**. When no test
   suite exists in a generated project, the report says so explicitly instead of inventing
