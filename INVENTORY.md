@@ -5,10 +5,10 @@
 ## طريقة الجرد
 
 ```
-git ls-files | Measure-Object -Line          → 116 ملفاً متتبعاً (بعد هذا الالتزام)
-Get-ChildItem src/lib/**/*.test.ts           → 26 ملف اختبار
-npm test                                     → 109 pass / 0 fail / 0 skipped
-npm run test:e2e                             → 8 pass / 0 fail (Playwright chromium)
+git ls-files | Measure-Object -Line          → 118 ملفاً متتبعاً (بعد هذا الالتزام)
+Get-ChildItem src/lib/**/*.test.ts           → 27 ملف اختبار
+npm test                                     → 115 pass / 0 fail / 0 skipped
+npm run test:e2e                             → 9 pass / 0 fail (Playwright chromium)
 npm run check                                → critical 9/9 · exit 0
 ```
 
@@ -17,14 +17,14 @@ npm run check                                → critical 9/9 · exit 0
 | المجلد | عدد الملفات | المحتوى |
 |---|---|---|
 | `(root)` | 25 | `server.ts`، إعدادات الحزمة، 15 ملف توثيق (منها `INVENTORY.md`)، `.gitignore`، `.env.example`، `models.config.json`، `package-lock.json`. |
-| `src` | 81 | `App.tsx`، `main.tsx`، `index.css`، 11 مكوّنات، وحدات `lib` + `lib/brains` (3) + `lib/enterprise` (3)، 26 ملف اختبار (ضمن الـ 81). |
+| `src` | 83 | `App.tsx`، `main.tsx`، `index.css`، 11 مكوّنات، وحدات `lib` + `lib/brains` (3) + `lib/enterprise` (5)، 27 ملف اختبار (ضمن الـ 83). |
 | `scripts` | 5 | `backup.ts`, `restore.ts`, `doctor.ts`, `check-secrets.ts`, `windows_job_sandbox.ps1`. |
 | `.github` | 1 | `workflows/ci.yml`. |
-| `e2e` | 1 | `studio.spec.ts` — 8 اختبارات متصفح حقيقية عبر Playwright. |
+| `e2e` | 1 | `studio.spec.ts` — 9 اختبارات متصفح حقيقية عبر Playwright. |
 | `(root)` | — | `playwright.config.ts` لإعداد المتصفح والخادم. |
 | `public` | 2 | أصول المنصة الأصلية. |
 
-## سجل الاختبارات (26 ملفاً / 109 اختبارات)
+## سجل الاختبارات (27 ملفاً / 115 اختباراً)
 
 | الملف | عدد الحالات | ما يغطيه |
 |---|---|---|
@@ -34,6 +34,7 @@ npm run check                                → critical 9/9 · exit 0
 | `dashboard_metrics.test.ts` | 3 | تجميع آمن للحالة الفارغة، درجات واختبارات، قياسات وإصلاح حقيقي. |
 | `doctor_ci.test.ts` | 2 | `doctor --ci` يفرض البوابات المحمولة ويُعلن المتخطى. |
 | `enterprise/enterprise.test.ts` | 4 | دقة تصنيف الأقسام العشرة، تقدم آلة الحالة إلى `VERIFIED_COMMIT` بتحقق OS حقيقي، فشل مغلق لخطأ الجسر ومسار غير آمن. |
+| `enterprise/repo_ingest.test.ts` | 6 | حارس المسار، مانيفست SHA-256 وتدقيق أساس بـ `node --test` فعلي، ترقية ذرّية تحسّن الدرجة وفحص بايتات الملفات غير المعدّلة، فشل مغلق لتراجع الاختبارات أو `TIMEOUT` الجسر، سجل تدقيق محفوظ ورفض جذور النظام. |
 | `event_bus.test.ts` | 4 | عزل المواضيع، إلغاء الاشتراك، إطارات SSE، بث حي، فشل مستمع آمن. |
 | `export_fs.test.ts` | 1 | كتابة الحزمة ورفض مسار `../`. |
 | `git_deploy.test.ts` | 5 | تعقيم البيئة والـ remote ونشر حقيقي. |
@@ -59,8 +60,8 @@ npm run check                                → critical 9/9 · exit 0
 
 ```
 npm run lint         → tsc --noEmit
-npm test             → 109/109
-npm run test:e2e     → 8/8 (Playwright)
+npm test             → 115/115
+npm run test:e2e     → 9/9 (Playwright)
 npm run check:secrets→ SECRETS_OK findings=0
 npm run doctor       → critical 9/9
 npm run doctor -- --ci → critical 4/4 · 5 skipped (مُعلن)

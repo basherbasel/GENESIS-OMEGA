@@ -281,7 +281,7 @@ npm run lint && npm test
 
 ```
 npm run lint        → tsc --noEmit
-npm test            → 95 pass / 0 fail / 0 skipped
+npm test            → 115 pass / 0 fail / 0 skipped
 npm run check       → lint + test + check:secrets + doctor = exit 0
 npm run doctor      → critical 9/9
 npm run doctor -- --ci → 4/4 مُنفَّذ + 5 مُعلَن تخطيها
@@ -305,7 +305,7 @@ npm run restore -- <dir> --yes → RESTORE_OK
 |---|---|---|
 | **1 — العقول المحلية وفهرس المستودعات** | ✅ منجزة | `brains/brain_registry.ts` · `brains/repo_indexer.ts` · `brains/surgical_patcher.ts` + 4 اختبارات |
 | **2 — محرك الشركة والأقسام العشرة** | ✅ منجزة | `enterprise/departments.ts` · `enterprise/work_order_engine.ts` · `EnterpriseView.tsx` + 4 اختبارات |
-| 3 — صيانة المشاريع القائمة | ⬜ | `enterprise/repo_ingest.ts` + توسيع `healer.ts` |
+| 3 — صيانة المشاريع القائمة | ✅ منجزة | `enterprise/repo_ingest.ts` · `local_synthesis.synthesizeTextWithBridge` · لوحة الصيانة في `EnterpriseView.tsx` |
 | 4 — الجاهزية مفتوحة المصدر | ⬜ | `LICENSE` · `CONTRIBUTING.md` · `scripts/bootstrap.ps1/.sh` |
 
 **ما أُنجز فعلياً في المرحلة 1:**
@@ -319,9 +319,16 @@ npm run restore -- <dir> --yes → RESTORE_OK
 - آلة حالة persisted لـ أوامر العمل: `BACKLOG → SPEC_BLUEPRINT → IMPLEMENTATION → OS_VERIFICATION → SECURITY_AUDIT → SELF_HEALING → VERIFIED_COMMIT` مع `FAILED_CLOSED` يسجّل رمز الخطأ والمرحلة.
 - كل انتقال يُحفظ في SQLite (meta key `workOrders`) ويُبث عبر موضوع `work_order` على `/api/events`؛ المسارات: `GET/POST /api/enterprise/work-orders` و`GET /api/enterprise/work-orders/:id` و`POST .../:id/run` و`GET /api/enterprise/departments`.
 - التحقق من مسار الكتابة داخل مساحة العمل (`isSafeRelativePath` + فحص الانزلاق)، وفحص أسرار حقيقي `scanSecretsAndSecurity`، ودورة شفاء حقيقية عبر `healProject` ثم إعادة تحقق — بلا أي fallback سحابي.
-- 4 اختبارات: دقة التصنيف، تقدم كامل بتحقق OS حقيقي (`node --check`)، فشل مغلق لخطأ الجسر (`MODEL_NOT_FOUND`)، ورفض مسار `../` قبل أي كتابة. E2E أصبح 8/8.
+- 4 اختبارات: دقة التصنيف، تقدم كامل بتحقق OS حقيقي (`node --check`)، فشل مغلق لخطأ الجسر (`MODEL_NOT_FOUND`)، ورفض مسار `../` قبل أي كتابة. E2E أصبح 8/8 (و9/9 بعد المرحلة 3).
 
-**التالي:** المرحلة 3 — امتداد `repo_ingest.ts` وتوسيع `healer.ts` لصيانة المشاريع القائمة.
+**ما أُنجز فعلياً في المرحلة 3:**
+- استيعاب مستودع قائم بقراءة فقط: رفض جذور النظام و`..` والمسارات النسبية غير الآمنة قبل أي قراءة، مشي محدود (4000 ملفاً/96MB) بلا تتبّع symlink، ومانيفست SHA-256 لكل ملف، مع نسخة معزولة مؤقتة تُحذف دائماً في `finally`.
+- تدقيق أساس حقيقي: تنفيذ OS فعلي للتحقق (`node --check`…) + فحص أسرار/ثغرات ساكن عبر `scanSecretsAndSecurity` + درجة من `computeHealingScore`، وكل مرحلة تُبث على موضوع `ingest` في `/api/events`.
+- تطوّر/تحصين ذرّي: ترقيع `SEARCH/REPLACE` من الجسر المحلي (فشل مغلق بلا سحابة) يُطبَّق داخل النسخة المعزولة فقط، ثم تحقق OS وإعادة فحص وشفاء حقيقي عبر `healProject`، وبوابة ترقية ترفض أي انخفاض درجة أو سرّ جديد أو تراجع اختبارات — وإلا تبقى الملفات الأصلية ببايتاتها الحرفية.
+- المسارات: `POST /api/enterprise/ingest` (تدقيق) و`POST /api/enterprise/ingest/evolve` (مع `harden-only`/`develop-feature`/`full-evolve` وcommit اختياري) و`GET /api/enterprise/ingest/runs` (20 عملية محفوظة في meta `ingestRuns`)، مع لوحة صيانة في `EnterpriseView.tsx` تعرض المراحل المباشرة وسجل العمليات.
+- 6 اختبارات وحدة تعمل على مستودعات حقيقية: حارس المسار، مانيفست SHA-256 وتدقيق أساس بتشغيل `node --test` فعلي، ترقية ذرّية تحسّن الدرجة مع فحص بايتات الملفات غير المعدّلة، فشل مغلق عند تراجع الاختبارات أو `TIMEOUT` الجسر، وسجل تدقيق persists مع رفض جذور النظام. E2E التاسع ينفّذ تدقيقاً حقيقياً ويرفض `C:\Windows\System32` بـ 400 ويعرض اللوحة.
+
+**التالي:** المرحلة 4 — الجاهزية مفتوحة المصدر (`LICENSE` · `CONTRIBUTING.md` · `scripts/bootstrap.ps1/.sh`).
 
 **التوقيع:** المهندس بشار — owner & executor
 **آخر تحديث:** 23 نوفمبر 2026

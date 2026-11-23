@@ -9,7 +9,7 @@ npm install
 cp .env.example .env.local   # أضف GEMINI_API_KEY اختيارياً للتوليد السحابي
 npm run dev                  # http://localhost:3000
 npm test                     # 98 اختبار وحدة/تكامل
-npm run test:e2e             # 8 اختبارات متصفح حقيقية (Playwright)
+npm run test:e2e             # 9 اختبارات متصفح حقيقية (Playwright)
 npm run check                # lint + test + secrets + doctor
 ```
 
@@ -173,9 +173,23 @@ curl http://localhost:3000/api/enterprise/work-orders          # persisted list
 curl http://localhost:3000/api/enterprise/work-orders/<id>     # single order + audit log
 ```
 
+The same tab also maintains **existing** local repositories (v2.0 Phase 3). The audit is
+strictly read-only (SHA-256 manifest + real OS verification + secret scan); evolution
+(`harden-only` / `develop-feature` / `full-evolve`) applies local-brain `SEARCH/REPLACE`
+patches inside an isolated copy and only writes to the originals after the atomic
+promotion gate passes — otherwise the files stay byte-for-byte identical.
+
+```bash
+curl -X POST http://localhost:3000/api/enterprise/ingest \
+  -H 'Content-Type: application/json' -d '{"path":"E:\\code\\my-repo"}'   # baseline audit
+curl -X POST http://localhost:3000/api/enterprise/ingest/evolve \
+  -H 'Content-Type: application/json' -d '{"path":"E:\\code\\my-repo","mode":"harden-only"}'
+curl http://localhost:3000/api/enterprise/ingest/runs                     # last 20 runs
+```
+
 ## Verification & integrity policy
 
-- `npm test` runs **every** unit/integration test file under `src/lib/*.test.ts` (26 files, 109 cases). Browser tests are separate: `npm run test:e2e`. It is the
+- `npm test` runs **every** unit/integration test file under `src/lib/*.test.ts` (27 files, 115 cases). Browser tests are separate: `npm run test:e2e` (9 cases). It is the
   canonical check; `npm run lint` / `npx tsc --noEmit` must also pass with zero errors.
 - Verification reports count **only tests the OS runner actually executed**. When no test
   suite exists in a generated project, the report says so explicitly instead of inventing

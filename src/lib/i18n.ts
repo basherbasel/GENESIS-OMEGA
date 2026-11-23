@@ -80,6 +80,25 @@ export const TRANSLATIONS = {
   'ent.activeDeps': { ar: 'الأقسام النشطة', en: 'Active departments' },
   'ent.contracts': { ar: 'القواعد الهندسية', en: 'Engineering contracts' },
   'ent.gates': { ar: 'بوابات التحقق', en: 'Verification gates' },
+  'ent.ingest': { ar: 'صيانة مستودع قائم', en: 'Maintain existing repository' },
+  'ent.ingestHint': {
+    ar: 'قراءة فقط: تدقيق خط الأساس لا يمسّ الملفات، والتطوير يكتب فقط بعد اجتياز بوابة الترقية.',
+    en: 'Read-only baseline audit; evolution writes only after the promotion gate passes.',
+  },
+  'ent.ingestPath': { ar: 'مسار المستودع على القرص', en: 'Repository path on disk' },
+  'ent.ingestMode': { ar: 'وضع التطوير', en: 'Evolution mode' },
+  'ent.mode.harden': { ar: 'تحصين فقط', en: 'Harden only' },
+  'ent.mode.feature': { ar: 'تطوير ميزة', en: 'Develop feature' },
+  'ent.mode.full': { ar: 'تطوّر كامل', en: 'Full evolve' },
+  'ent.ingestGoal': { ar: 'الهدف الهندسي (مطلوب لوضع تطوير الميزة)', en: 'Engineering goal (required for develop-feature)' },
+  'ent.ingestAudit': { ar: 'تدقيق خط الأساس', en: 'Baseline audit' },
+  'ent.ingestEvolve': { ar: 'التطوير والتحصين', en: 'Evolve & harden' },
+  'ent.ingestStages': { ar: 'المراحل المباشرة', en: 'Live stages' },
+  'ent.ingestRuns': { ar: 'سجل العمليات', en: 'Run history' },
+  'ent.ingestNoRuns': { ar: 'لا توجد عمليات تدوير مسجّلة بعد.', en: 'No ingestion runs recorded yet.' },
+  'ent.ingestStatus': { ar: 'الحالة', en: 'Status' },
+  'ent.ingestChanged': { ar: 'ملفات معدّلة', en: 'Changed files' },
+  'ent.ingestNoStages': { ar: 'بانتظار مرحلة من الخادم…', en: 'Waiting for a stage from the server…' },
 } satisfies Record<string, TranslationEntry>;
 
 export type TranslationKey = keyof typeof TRANSLATIONS;

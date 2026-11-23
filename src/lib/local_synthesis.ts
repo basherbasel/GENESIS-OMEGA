@@ -67,6 +67,63 @@ function collectFiles(raw: unknown): Record<string, string> {
   return files;
 }
 
+export interface LocalTextSynthesisParams {
+  prompt: string;
+  /** Local model id resolved by the caller from a brain profile. */
+  model: string;
+  system?: string;
+  /** Deterministic brain-profile sampling bounds forwarded to the bridge. */
+  numCtx?: number;
+  numPredict?: number;
+  /** Forwarded to the bridge so callers can cancel a long generation. */
+  signal?: AbortSignal;
+  /** Injectable for tests; defaults to the real guarded bridge. */
+  generateFn?: typeof generate;
+}
+
+export interface LocalTextSynthesisOutput {
+  engine: 'ollama-bridge';
+  modelUsed: string;
+  /** Raw model text; empty when `error` is set. */
+  text: string;
+  error?: string;
+  errorCode?: string;
+}
+
+/**
+ * Raw-text counterpart of `synthesizeWithBridge` for contracts that are not
+ * file maps (SEARCH/REPLACE patch batches). Identical fail-closed rules:
+ * explicit error code, 60s timeout, AbortSignal, zero cloud fallback.
+ */
+export async function synthesizeTextWithBridge(
+  params: LocalTextSynthesisParams,
+): Promise<LocalTextSynthesisOutput> {
+  const runner = params.generateFn || generate;
+  try {
+    const result = await runner({
+      model: params.model,
+      system: params.system || SYSTEM,
+      prompt: params.prompt,
+      jsonMode: true,
+      numCtx: params.numCtx,
+      numPredict: params.numPredict,
+      timeoutMs: 60_000,
+      signal: params.signal,
+    });
+    return { engine: 'ollama-bridge', modelUsed: params.model, text: result.text };
+  } catch (err) {
+    // Fail closed: never fall back to a cloud model here.
+    const code = err instanceof LlamaBridgeError ? err.code : 'PROCESS_FAILED';
+    return {
+      engine: 'ollama-bridge',
+      modelUsed: params.model,
+      text: '',
+      error: err instanceof Error ? err.message : String(err),
+      errorCode: code,
+    };
+  }
+}
+
 export async function synthesizeWithBridge(params: LocalSynthesisParams): Promise<LocalSynthesisOutput> {
   const model = params.routing.builder_alpha;
   const runner = params.generateFn || generate;

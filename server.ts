@@ -62,10 +62,27 @@ import {
 import { formatSseFrame, studioEvents } from './src/lib/event_bus';
 import { studioJobs } from './src/lib/job_queue';
 import { RateLimiter } from './src/lib/rate_limit';
-import { synthesizeWithBridge } from './src/lib/local_synthesis';
-import { brainInferenceOptions, BRAIN_PROFILES, resolveBrainModel } from './src/lib/brains/brain_registry';
+import { synthesizeTextWithBridge, synthesizeWithBridge } from './src/lib/local_synthesis';
+import {
+  brainInferenceOptions,
+  BRAIN_PROFILES,
+  buildBrainSystemPrompt,
+  resolveBrainModel,
+} from './src/lib/brains/brain_registry';
 import { DEPARTMENTS } from './src/lib/enterprise/departments';
 import { WorkOrderEngine } from './src/lib/enterprise/work_order_engine';
+import {
+  EVOLVE_MODES,
+  evolveAndHardenRepo,
+  ingestAndAuditLocalRepository,
+  loadIngestRuns,
+  RepoIngestError,
+  validateRepoRoot,
+  type EvolveMode,
+  type RepoIngestDeps,
+  type RepoIngestRun,
+  type RepoIngestStore,
+} from './src/lib/enterprise/repo_ingest';
 import {
   computeUnifiedDiffs,
   evaluateWithAtomicRollback,
@@ -1077,6 +1094,55 @@ async function startServer() {
     onEvent: (event) => studioEvents.publish('work_order', event),
   });
 
+  // v2 Phase 3: ingestion, baseline auditing and atomic evolution of existing
+  // local repositories. Same real primitives as the work-order engine: guarded
+  // bridge synthesis (fail-closed), real OS verification, real security scan,
+  // real healer, SQLite persistence and SSE progress events.
+  const ingestStore: RepoIngestStore = {
+    load: () => {
+      const raw = STORE_REPOSITORY.getMetaValue('ingestRuns');
+      if (!raw) return [];
+      try {
+        const parsed = JSON.parse(raw) as RepoIngestRun[];
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    },
+    save: (runs) => STORE_REPOSITORY.setMetaValue('ingestRuns', JSON.stringify(runs)),
+  };
+
+  const repoIngestDeps: RepoIngestDeps = {
+    synthesize: async ({ role, prompt, signal }) => {
+      const options = brainInferenceOptions(role);
+      const model = resolveBrainModel(role, installedBrains);
+      return synthesizeTextWithBridge({
+        prompt,
+        model,
+        system: buildBrainSystemPrompt(role),
+        numCtx: options.numCtx,
+        numPredict: options.numPredict,
+        signal,
+      });
+    },
+    verify: (workspaceDir, files, ecosystemKey) => verifyProjectWorkspace(workspaceDir, files, ecosystemKey),
+    scan: scanSecretsAndSecurity,
+    heal: async ({ files, workspaceDir, verification, ecosystemKey }) => {
+      const outcome = await healProject({
+        projectId: -1,
+        files,
+        ecosystemKey,
+        baselineVerification: verification,
+        workspaceRoot: path.join(DATA_DIR, 'workspaces', 'ingest'),
+        maxIterations: 3,
+        verify: (candidate, dir) => verifyProjectWorkspace(dir, candidate, ecosystemKey),
+      });
+      return outcome.report.attempts.length > 0 ? { files: outcome.files, report: outcome.report } : null;
+    },
+    store: ingestStore,
+    onEvent: (event) => studioEvents.publish('ingest', event),
+  };
+
   const piperTts = new PiperNeuralVoiceEngine({
     baseDir: __dirname,
     cacheDir: path.join(DATA_DIR, 'voice_cache'),
@@ -1347,6 +1413,7 @@ code{background:#020617;padding:2px 6px;border-radius:4px;color:#38bdf8}</style>
     const offState = studioEvents.subscribe('state', forward);
     const offJob = studioEvents.subscribe('job', forward);
     const offWorkOrder = studioEvents.subscribe('work_order', forward);
+    const offIngest = studioEvents.subscribe('ingest', forward);
     const heartbeat = setInterval(() => {
       try {
         res.write(': ping\n\n');
@@ -1360,6 +1427,7 @@ code{background:#020617;padding:2px 6px;border-radius:4px;color:#38bdf8}</style>
       offState();
       offJob();
       offWorkOrder();
+      offIngest();
       clearInterval(heartbeat);
     });
   });
@@ -1446,6 +1514,54 @@ code{background:#020617;padding:2px 6px;border-radius:4px;color:#38bdf8}</style>
     } catch (err) {
       res.status(404).json({ error: err instanceof Error ? err.message : 'أمر العمل غير موجود.' });
     }
+  });
+
+  // v2 Phase 3: ingest an existing local repository and produce a real
+  // baseline report (SHA-256 manifest + OS verification + security scan).
+  app.post('/api/enterprise/ingest', async (req, res) => {
+    const validation = validateRepoRoot(String(req.body?.path || ''));
+    if (!validation.ok) {
+      res.status(400).json({ code: validation.code, error: validation.message });
+      return;
+    }
+    try {
+      res.json(await ingestAndAuditLocalRepository(validation.resolved, repoIngestDeps));
+    } catch (err) {
+      res.status(422).json({
+        code: err instanceof RepoIngestError ? err.code : 'INGEST_FAILED',
+        error: err instanceof Error ? err.message : 'repository ingestion failed',
+      });
+    }
+  });
+
+  // v2 Phase 3: atomic evolution/hardening with a promotion gate; every stage
+  // is pushed over SSE on the `ingest` topic.
+  app.post('/api/enterprise/ingest/evolve', async (req, res) => {
+    const validation = validateRepoRoot(String(req.body?.path || ''));
+    if (!validation.ok) {
+      res.status(400).json({ code: validation.code, error: validation.message });
+      return;
+    }
+    const mode = String(req.body?.mode || 'harden-only') as EvolveMode;
+    if (!EVOLVE_MODES.includes(mode)) {
+      res.status(400).json({ code: 'INVALID_MODE', error: `unknown evolution mode: ${mode}` });
+      return;
+    }
+    const goal = String(req.body?.goal || '').trim();
+    if (mode === 'develop-feature' && !goal) {
+      res.status(400).json({ code: 'GOAL_REQUIRED', error: 'develop-feature requires an explicit engineering goal' });
+      return;
+    }
+    const outcome = await evolveAndHardenRepo(
+      { repoPath: validation.resolved, mode, goal: goal || undefined, autoCommit: req.body?.autoCommit === true },
+      repoIngestDeps,
+    );
+    res.json({ outcome });
+  });
+
+  // v2 Phase 3: persisted ingest/evolve run history (bounded, newest first).
+  app.get('/api/enterprise/ingest/runs', (_req, res) => {
+    res.json({ runs: loadIngestRuns(ingestStore) });
   });
 
   // 2. Projects CRUD & Pipeline

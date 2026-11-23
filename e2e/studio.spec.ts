@@ -1,4 +1,7 @@
 import { expect, test } from '@playwright/test';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
 test('واجهة الاستوديو تحمل وتعرض التنقل الأساسي', async ({ page }) => {
   await page.goto('/');
@@ -123,4 +126,43 @@ test('تقرير HTML يدعم الطباعة إلى PDF', async ({ request }) =
   expect(body).toContain('window.print()');
   expect(body).toContain('@media print');
   expect(body).toContain('تقرير التدقيق');
+});
+
+test('صيانة مستودع قائم: تدقيق حقيقي ورفض مسار غير آمن وعرض اللوحة', async ({ page, request }) => {
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'omega-e2e-ingest-'));
+  fs.writeFileSync(
+    path.join(repo, 'index.js'),
+    "'use strict';\nfunction answer() {\n  return 42;\n}\nmodule.exports = { answer };\n",
+    'utf-8',
+  );
+  try {
+    // 1. Real baseline audit over a real on-disk repository.
+    const audit = await request.post('/api/enterprise/ingest', { data: { path: repo } });
+    expect(audit.ok()).toBeTruthy();
+    const body = await audit.json();
+    expect(body.run.status).toBe('audited');
+    expect(body.report.verification.exitCode).toBe(0);
+    expect(body.summary.manifest[0]).toHaveProperty('sha256');
+
+    // 2. Unsafe OS root is rejected before anything is read.
+    const rejected = await request.post('/api/enterprise/ingest', { data: { path: 'C:\\Windows\\System32' } });
+    expect(rejected.status()).toBe(400);
+    expect((await rejected.json()).code).toBe('UNSAFE_REPO_PATH');
+
+    // 3. The run is persisted and served back (newest first).
+    const runs = await (await request.get('/api/enterprise/ingest/runs')).json();
+    expect(runs.runs[0].id).toBe(body.run.id);
+
+    // 4. The panel renders the controls and the persisted run.
+    await page.goto('/');
+    await page.getByRole('button', { name: 'أوامر الشركة' }).click();
+    const panel = page.locator('section[aria-label="صيانة مستودع قائم"]');
+    await expect(panel).toBeVisible();
+    await expect(panel.getByPlaceholder('مسار المستودع على القرص')).toBeVisible();
+    await expect(panel.getByRole('button', { name: 'تدقيق خط الأساس' })).toBeVisible();
+    await expect(panel.getByRole('button', { name: 'التطوير والتحصين' })).toBeVisible();
+    await expect(panel.getByText('الحالة: audited').first()).toBeVisible();
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true, maxRetries: 8, retryDelay: 100 });
+  }
 });
