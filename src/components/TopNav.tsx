@@ -13,6 +13,7 @@ const NAV_ITEMS: Array<{ id: TopView; label: string }> = [
   { id: 'solutions', label: 'كتالوج الحلول' },
   { id: 'watch', label: 'مراقبة المجلدات' },
   { id: 'vault', label: 'الإحصائيات والخبرات' },
+  { id: 'dashboard', label: 'لوحة القياسات' },
   { id: 'migration', label: 'هجرة الأنظمة' },
 ];
 

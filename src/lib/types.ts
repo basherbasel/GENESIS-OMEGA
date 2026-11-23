@@ -403,7 +403,7 @@ export interface GovernorStats {
   watchPollSec: number;
 }
 
-export type TopView = 'studio' | 'solutions' | 'watch' | 'vault' | 'migration';
+export type TopView = 'studio' | 'solutions' | 'watch' | 'vault' | 'migration' | 'dashboard';
 
 export interface SolutionDomainSummary {
   id: string;

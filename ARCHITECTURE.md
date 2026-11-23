@@ -24,7 +24,7 @@ genesis-omega/
 │   ├── App.tsx                حالة الواجهة العامة والتوجيه بين العروض الخمسة.
 │   ├── index.css              تنسيقات Tailwind والثيم الداكن.
 │   ├── main.tsx               تحميل React في جذر DOM.
-│   ├── components/            تسعة مكوّنات واجهة (انظر القائمة أدناه).
+│   ├── components/            عشرة مكوّنات واجهة (انظر القائمة أدناه).
 │   └── lib/                   34 وحدة منطق (انظر القائمة أدناه).
 ├── data/                      حالة التشغيل: omega_store.db (WAL) + مرآة omega_store.json + workspaces/exports/voice_cache.
 ├── backups/                   نسخ احتياطية موسومة بالطابع الزمني.
@@ -61,6 +61,7 @@ genesis-omega/
 | solution_catalog.ts | 24 نطاق حل emits حزمة كاملة قابلة للتحقق. |
 | toolchain_doctor.ts | يفحص توفر أدوات الأنظمة والبيئات لكل لغة. |
 | types.ts | العقود المشتركة: ProjectRecord وGovernorStats أنواع الواجهة. |
+| dashboard_metrics.ts | تجميع نقي للدرجات والاختبارات والقياسات والإصلاح من ProjectRecord. |
 | event_bus.ts | ناقل pub-sub داخلي وإطارات SSE لدفع تغييرات الحالة والمهام إلى الواجهة. |
 | job_queue.ts | طابور worker تسلسلي بمعرّف وحالة وقبول/رفض للفشل بلا توقف. |
 | store_repository.ts | مخزن SQLite WAL بواجهة load/save ومرآة JSON وهجرة تلقائية عند الاستعادة. |
@@ -82,6 +83,7 @@ genesis-omega/
 | MigrationView.tsx | هجرة الأنظمة القديمة واختبارات التطابق. |
 | ExportModal.tsx | تصدير ZIP ونشر Git واختيار Dry Run. |
 | AuthGate.tsx | شاشة الدخول عندما يُضبط OMEGA_API_KEY. |
+| DashboardView.tsx | لوحة قياسات بـ CSS خالص من بيانات المتجر والمتحقق. |
 
 ## تدفق البيانات
 

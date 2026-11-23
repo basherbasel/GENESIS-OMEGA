@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AuthGate } from './components/AuthGate';
+import { DashboardView } from './components/DashboardView';
 import { LiveWaveformHud } from './components/LiveWaveformHud';
 import { MigrationView } from './components/MigrationView';
 import { SolutionCatalogView } from './components/SolutionCatalogView';
@@ -459,6 +460,8 @@ export default function App() {
           onScanAll={handleScanAllWatches}
           onDeleteWatch={handleDeleteWatch}
         />
+      ) : activeView === 'dashboard' ? (
+        <DashboardView projects={projects} governor={governor} activeRouting={activeRouting} />
       ) : activeView === 'vault' ? (
         <VaultView
           projects={projects}
