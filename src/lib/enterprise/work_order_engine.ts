@@ -15,6 +15,8 @@ import type { BrainRole } from '../brains/brain_registry';
 import type { LocalSynthesisOutput } from '../local_synthesis';
 import { isSafeRelativePath } from '../security';
 import { computeHealingScore } from '../healer';
+import type { PeerReviewResult } from './peer_review_council';
+import type { PrecisionReport } from './precision_verifier';
 import type { EcosystemKey, ExecutionVerifySummary, HealingReport } from '../types';
 import { activeRules, classifyDepartments, mappedBrainRoles, verificationGates, type DepartmentInput } from './departments';
 
@@ -64,6 +66,8 @@ export interface WorkOrder {
   testsRun?: number;
   verification?: ExecutionVerifySummary;
   healing?: HealingReport;
+  peerReview?: PeerReviewResult;
+  precision?: PrecisionReport;
   auditLog: WorkOrderLog[];
   createdAt: string;
   updatedAt: string;
@@ -98,6 +102,22 @@ export interface WorkOrderDeps {
     verification: ExecutionVerifySummary;
     ecosystemKey: EcosystemKey;
   }) => Promise<{ files: Record<string, string>; report: HealingReport } | null>;
+  /** v3: adversarial peer review before VERIFIED_COMMIT; injected by the server. */
+  peerReview?: (input: {
+    workspaceDir: string;
+    problemStatement: string;
+    departments: Array<{ id: string; score: number }>;
+    files: Record<string, string>;
+    verification: ExecutionVerifySummary;
+  }) => Promise<PeerReviewResult>;
+  /** v3: real runtime precision/boundary measurement. */
+  precision?: (input: {
+    label: string;
+    departments: Array<{ id: string; score: number }>;
+    verification: ExecutionVerifySummary;
+    files: Record<string, string>;
+    workspaceDir: string;
+  }) => Promise<PrecisionReport>;
   onEvent?: (event: WorkOrderEvent) => void;
 }
 
@@ -170,13 +190,7 @@ export class WorkOrderEngine {
         return this.needsHealing(order, verification, 'SECURITY_AUDIT_FAILED');
       }
 
-      this.transition(order, 'VERIFIED_COMMIT', '');
-      order.finalScore = computeHealingScore(order.files, verification);
-      order.testsRun = verification.testsExecuted;
-      order.verification = verification;
-      this.persist();
-      this.emit(order);
-      return order;
+      return this.finalize(order, verification);
     } finally {
       this.running.delete(id);
     }
@@ -280,9 +294,61 @@ export class WorkOrderEngine {
       return order;
     }
     this.transition(order, 'VERIFIED_COMMIT', 'healed and re-verified');
-    order.finalScore = computeHealingScore(order.files, second);
-    order.testsRun = second.testsExecuted;
-    order.verification = second;
+    return this.finalize(order, second);
+  }
+
+  /** v3 gates: adversarial peer review then quantitative precision, fail closed. */
+  private async finalize(order: WorkOrder, verification: ExecutionVerifySummary): Promise<WorkOrder> {
+    const departments = order.departmentIds.map((id) => ({ id, score: 0 }));
+    if (this.deps.peerReview) {
+      const review = await this.deps.peerReview({
+        workspaceDir: this.workspaceDir(order.id),
+        problemStatement: order.problemStatement,
+        departments,
+        files: order.files,
+        verification,
+      });
+      order.peerReview = review;
+      this.persist();
+      if (!review.passed) {
+        this.fail(order, 'PEER_REVIEW_REJECTED', 'SECURITY_AUDIT', review.findings
+          .filter((item) => item.severity === 'CRITICAL' || item.severity === 'HIGH')
+          .map((item) => `${item.id}@${item.file}:${item.line}`)
+          .slice(0, 6)
+          .join(', '));
+        return order;
+      }
+      if (review.remediationApplied && review.files) {
+        order.files = review.files;
+        const rechecked = await this.deps.verify(this.workspaceDir(order.id), order.files, order.ecosystemKey);
+        if (rechecked.exitCode !== 0) {
+          this.fail(order, 'PEER_REVIEW_REJECTED', 'OS_VERIFICATION', `exit=${rechecked.exitCode} after remediation`);
+          return order;
+        }
+        verification = rechecked;
+      }
+    }
+
+    if (this.deps.precision) {
+      const precision = await this.deps.precision({
+        label: order.id,
+        departments,
+        verification,
+        files: order.files,
+        workspaceDir: this.workspaceDir(order.id),
+      });
+      order.precision = precision;
+      this.persist();
+      if (!precision.passed) {
+        this.fail(order, 'PRECISION_REJECTED', 'OS_VERIFICATION', precision.findings.map((f) => f.id).join(', '));
+        return order;
+      }
+    }
+
+    this.transition(order, 'VERIFIED_COMMIT', order.peerReview ? 'peer-reviewed and verified' : 'verified');
+    order.finalScore = computeHealingScore(order.files, verification);
+    order.testsRun = verification.testsExecuted;
+    order.verification = verification;
     this.persist();
     this.emit(order);
     return order;

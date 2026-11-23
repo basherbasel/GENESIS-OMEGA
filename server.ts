@@ -72,6 +72,11 @@ import {
 import { DEPARTMENTS } from './src/lib/enterprise/departments';
 import { WorkOrderEngine } from './src/lib/enterprise/work_order_engine';
 import {
+  remediateFindings,
+  runPeerReviewCouncil,
+} from './src/lib/enterprise/peer_review_council';
+import { measurePrecision } from './src/lib/enterprise/precision_verifier';
+import {
   EVOLVE_MODES,
   evolveAndHardenRepo,
   ingestAndAuditLocalRepository,
@@ -1044,6 +1049,47 @@ async function startServer() {
   // v2 Phase 2: enterprise work orders backed by the same SQLite store and
   // driven exclusively by local brains, real OS verification and real healing.
   const installedBrains = new Set(localModelStatus.models);
+
+  // v3 Part 1: shared real peer-review and precision gates for the enterprise
+  // engines. All inference stays behind local_synthesis -> llama-bridge.
+  const peerReviewFor = (input: {
+    workspaceDir: string;
+    problemStatement: string;
+    departments: Array<{ id: string; score?: number }>;
+    files: Record<string, string>;
+    verification: ExecutionVerifySummary;
+    focusedContext?: string;
+  }) =>
+    runPeerReviewCouncil(input, {
+      installedModels: installedBrains,
+      remediate: remediateFindings,
+      verify: (files, workspaceDir) =>
+        verifyProjectWorkspace(workspaceDir, files, detectEcosystem('', Object.keys(files)).key),
+    });
+
+  const precisionGate = async (
+    label: string,
+    departments: Array<{ id: string; score?: number }>,
+    files: Record<string, string>,
+    workspaceDir: string,
+  ) =>
+    measurePrecision(
+      { label, departments, verification: undefined },
+      {
+        runs: 2,
+        execute: async () => {
+          const summary = await verifyProjectWorkspace(workspaceDir, files, detectEcosystem('', Object.keys(files)).key);
+          return { testsPassed: summary.testsPassed, testsExecuted: summary.testsExecuted, exitCode: summary.exitCode };
+        },
+        executeBoundary: (value) => ({
+          input: value.slice(0, 80),
+          safe: isSafeRelativePath(value) !== null,
+          finite: Number.isFinite(Number(value)),
+        }),
+        maxDurationMs: 120_000,
+      },
+    );
+
   const workOrderEngine = new WorkOrderEngine({
     workspaceRoot: path.join(DATA_DIR, 'workspaces'),
     store: {
@@ -1093,6 +1139,9 @@ async function startServer() {
       });
       return outcome.report.attempts.length > 0 ? { files: outcome.files, report: outcome.report } : null;
     },
+    peerReview: peerReviewFor,
+    precision: async ({ label, departments, files, workspaceDir }) =>
+      precisionGate(label, departments, files, workspaceDir),
     onEvent: (event) => studioEvents.publish('work_order', event),
   });
 
@@ -1142,6 +1191,9 @@ async function startServer() {
       return outcome.report.attempts.length > 0 ? { files: outcome.files, report: outcome.report } : null;
     },
     store: ingestStore,
+    peerReview: peerReviewFor,
+    precision: async ({ label, departments, files, workspaceDir }) =>
+      precisionGate(label, departments, files, workspaceDir),
     onEvent: (event) => studioEvents.publish('ingest', event),
   };
 

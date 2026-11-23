@@ -31,8 +31,8 @@ genesis-omega/
 │   ├── main.tsx               تحميل React في جذر DOM.
 │   ├── components/            اثنا عشر مكوّن واجهة (انظر القائمة أدناه).
 │   ├── lib/                   وحدات المنطق (انظر القائمة أدناه).
-│   ├── lib/brains/            عقول محلية وفهرس مستودعات وترقيع جراحي (v2.0).
-│   ├── lib/enterprise/        الأقسام العشرة وآلة حالة أوامر العمل وصيانة المستودعات (v2.0).
+│   ├── lib/brains/            عقول محلية وفهرس مستودعات وترقيع جراحي ورسم تبعيات (v2/v3).
+│   ├── lib/enterprise/        الأقسام العشرة وآلة حالة أوامر العمل وصيانة المستودعات ومجلس المراجعة ومقياس الدقة (v2/v3).
 │   └── lib/voice/             توجيه نوايا ثنائي اللغة، حوار محلي، STT محلي، تطهير بيئة العمليات.
 ├── data/                      حالة التشغيل: omega_store.db (WAL) + مرآة omega_store.json + workspaces/exports/voice_cache.
 ├── backups/                   نسخ احتياطية موسومة بالطابع الزمني.
@@ -83,13 +83,16 @@ genesis-omega/
 | brain_registry.ts | 4 ملفات عقول محلية ببارامترات حتمية وخريطة نماذج مثبّتة. |
 | repo_indexer.ts | فهرس رموز متعدد اللغات بلا تبعيات مع ميزانية رموز. |
 | surgical_patcher.ts | SEARCH/REPLACE آمن بفحص مسارات وتحقق وتراجع ذري. |
+| dependency_graph.ts | رسم تبعيات موجّه متعدد اللغات، كشف دورات، ترتيب طوبولوجي، نطاق انفجار وتقطيع سياق محدود. |
 | enterprise/departments.ts | 10 أقسام هندسية بعقود وبوابات تحقق وتصنيف حتمي يربط كل قسم بعقل محلي. |
 | enterprise/work_order_engine.ts | آلة حالة persisted لأوامر العمل مع فشل مغلق صريح وبث كل انتقال عبر SSE. |
 | enterprise/repo_ingest.ts | استيعاب مستودع قائم للقراءة فقط مع تدقيق أساس SHA-256 وبوابة ترقية ذرّية للتطوّر/التحصين وبث كل مرحلة عبر SSE. |
+| enterprise/peer_review_council.ts | مراجعة عدائية: فحوص ثابتة + عقل `auditor` عبر الجسر المحلي، ترقيع جراحي وإعادة تحقق OS قبل الترقية. |
+| enterprise/precision_verifier.ts | قياس زمن/RSS حقيقي، تكرار وتحقق عددية واختبارات حدودية للنطاقات العلمية والخوارزمية. |
 | voice/voice_dialogue.ts | كشف لغة المتحدث، توجيه نوايا حتمي (أمر عمل/مستودع/إصلاح/لغة/دكتور/ملخص) وحوار محلي عبر `local_synthesis` بفشل مغلق. |
 | voice/offline_stt.ts | تفريغ صوتي محلي اختياري (Whisper/Vosk) بسقف بايتات وبيئة معقّمة و`STT_NOT_CONFIGURED`. |
 | voice/voice_process.ts | تطهير بيئة العمليات الفرعية وإدارة حمولة الصوت وامتداداته. |
-| `*.test.ts` | 28 ملف اختبار تغطي 125 حالة (آخر تشغيل: 125 ناجح، 0 فاشل). |
+| `*.test.ts` | 30 ملف اختبار تغطي 134 حالة (آخر تشغيل: 134 ناجح، 0 فاشل). |
 | `playwright.config.ts` + `e2e/studio.spec.ts` | 11 اختبارات متصفح E2E منفصلة عن `npm test`. |
 
 ## مكوّنات الواجهة
@@ -123,3 +126,4 @@ genesis-omega/
 8. `backup.ts` يتولى نسخ حالة `data/` دورياً، و`doctor.ts` يتحقق من الجاهزية.
 9. الحوار الصوتي: `VoiceHud` → `POST /api/voice/converse` → `voice_dialogue.ts` يوجّه النية → `WorkOrderEngine` / `repo_ingest` / `healer` أو حوار عبر `local_synthesis` → `llama-bridge` → Piper WAV أو Web Speech، مع بث `voice` على SSE.
 10. التفريغ الصوتي: `POST /api/voice/transcribe` يستخدم Whisper/Vosk محلياً إن وُجد، وإلا `503 STT_NOT_CONFIGURED` — المتصفح يستخدم SpeechRecognition بدلاً منه.
+11. قبل الترقية: `dependency_graph` يحدّد المتأثرين ويمرّر سياقاً مركّزاً إلى `coder`/`healer`، ثم `peer_review_council` يراجع ويعالج، ثم `precision_verifier` يقيس الزمن/RSS والتكرار والحدود — أي فشل CRITICAL/HIGH يُغلق دون كتابة.

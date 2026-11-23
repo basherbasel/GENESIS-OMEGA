@@ -10,7 +10,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-export type SymbolKind = 'function' | 'class' | 'interface' | 'type' | 'struct' | 'enum' | 'trait' | 'import';
+export type SymbolKind = 'function' | 'class' | 'interface' | 'type' | 'struct' | 'enum' | 'trait' | 'module' | 'import';
 
 export interface SymbolRecord {
   kind: SymbolKind;
@@ -126,6 +126,93 @@ const LANGUAGE_BY_EXT: Record<string, { name: string; imports: RegExp; symbols: 
     symbols: [
       { kind: 'class', regex: /^\s*(?:public|internal|abstract|sealed)?\s*(class|interface|struct)\s+([A-Za-z_]\w*)/, group: 2 },
       { kind: 'function', regex: /^\s*(?:public|private|protected|internal)\s+(?:static\s+)?(?:async\s+)?[\w<>\[\],.?]+\s+([A-Za-z_]\w*)\s*\(/, group: 1 },
+    ],
+  },
+  '.php': {
+    name: 'php',
+    imports: /^\s*(?:require(?:_once)?|include(?:_once)?|use)\s+['"]?([^\s;'"]+)/,
+    symbols: [
+      { kind: 'class', regex: /^\s*(?:final\s+)?class\s+([A-Za-z_]\w*)/, group: 1 },
+      { kind: 'function', regex: /^\s*(?:public|private|protected|static\s+)*function\s+([A-Za-z_]\w*)\s*\(/, group: 1 },
+    ],
+  },
+  '.rb': {
+    name: 'ruby',
+    imports: /^\s*require(?:_relative)?\s+['"]([^'"]+)['"]/,
+    symbols: [
+      { kind: 'class', regex: /^\s*class\s+([A-Za-z_]\w*)/, group: 1 },
+      { kind: 'function', regex: /^\s*def\s+([A-Za-z_]\w*[?!]?)(\(|$)/, group: 1 },
+    ],
+  },
+  '.lua': {
+    name: 'lua',
+    imports: /^\s*(?:require|dofile|loadfile)\s*\(?\s*['"]([^'"]+)['"]/,
+    symbols: [
+      { kind: 'function', regex: /^\s*(?:local\s+)?function\s+([A-Za-z_][\w.:]*)\s*\(/, group: 1 },
+    ],
+  },
+  '.dart': {
+    name: 'dart',
+    imports: /^\s*(?:import|export|part)\s+['"]([^'"]+)['"]/,
+    symbols: [
+      { kind: 'class', regex: /^\s*(?:abstract\s+)?class\s+([A-Za-z_]\w*)/, group: 1 },
+      { kind: 'function', regex: /^\s*(?:Future<[\w<>,\s]+>\s+)?(?:static\s+)?(?:void|int|double|String|bool|List<[\w<>,\s]+>|Map<[\w<>,\s,]+>|[A-Z]\w*)\s+([A-Za-z_]\w*)\s*\(/, group: 1 },
+    ],
+  },
+  '.f90': {
+    name: 'fortran',
+    imports: /^\s*use\s+([A-Za-z_]\w*)/,
+    symbols: [
+      { kind: 'module', regex: /^\s*module\s+([A-Za-z_]\w*)/, group: 1 },
+      { kind: 'function', regex: /^\s*(?:recursive\s+)?(?:subroutine|function)\s+([A-Za-z_]\w*)/, group: 1 },
+    ],
+  },
+  '.f95': {
+    name: 'fortran',
+    imports: /^\s*use\s+([A-Za-z_]\w*)/,
+    symbols: [
+      { kind: 'module', regex: /^\s*module\s+([A-Za-z_]\w*)/, group: 1 },
+      { kind: 'function', regex: /^\s*(?:recursive\s+)?(?:subroutine|function)\s+([A-Za-z_]\w*)/, group: 1 },
+    ],
+  },
+  '.for': {
+    name: 'fortran',
+    imports: /^\s*use\s+([A-Za-z_]\w*)/,
+    symbols: [
+      { kind: 'module', regex: /^\s*module\s+([A-Za-z_]\w*)/, group: 1 },
+      { kind: 'function', regex: /^\s*(?:recursive\s+)?(?:subroutine|function)\s+([A-Za-z_]\w*)/, group: 1 },
+    ],
+  },
+  '.pas': {
+    name: 'pascal',
+    imports: /^\s*uses\s+([A-Za-z_]\w*(?:\s*,\s*[A-Za-z_]\w*)*)/,
+    symbols: [
+      { kind: 'function', regex: /^\s*(?:procedure|function)\s+([A-Za-z_]\w*)/, group: 1 },
+      { kind: 'class', regex: /^\s*type\s+([A-Za-z_]\w*)\s*=/, group: 1 },
+    ],
+  },
+  '.pp': {
+    name: 'pascal',
+    imports: /^\s*uses\s+([A-Za-z_]\w*(?:\s*,\s*[A-Za-z_]\w*)*)/,
+    symbols: [
+      { kind: 'function', regex: /^\s*(?:procedure|function)\s+([A-Za-z_]\w*)/, group: 1 },
+      { kind: 'class', regex: /^\s*type\s+([A-Za-z_]\w*)\s*=/, group: 1 },
+    ],
+  },
+  '.cob': {
+    name: 'cobol',
+    imports: /^\s*copy\s+([A-Za-z0-9_-]+)/i,
+    symbols: [
+      { kind: 'function', regex: /^\s*program-id\.\s*([A-Za-z0-9_-]+)/i, group: 1 },
+      { kind: 'function', regex: /^\s*([A-Za-z0-9_-]+)\s+section\./i, group: 1 },
+    ],
+  },
+  '.cbl': {
+    name: 'cobol',
+    imports: /^\s*copy\s+([A-Za-z0-9_-]+)/i,
+    symbols: [
+      { kind: 'function', regex: /^\s*program-id\.\s*([A-Za-z0-9_-]+)/i, group: 1 },
+      { kind: 'function', regex: /^\s*([A-Za-z0-9_-]+)\s+section\./i, group: 1 },
     ],
   },
 };

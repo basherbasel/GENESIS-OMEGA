@@ -29,7 +29,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
-import { formatIndexForPrompt, indexRepository } from '../brains/repo_indexer';
+import { createDependencyAnalyzer } from '../brains/dependency_graph';
+import { formatIndexForPrompt, indexRepository, type RepoIndex } from '../brains/repo_indexer';
 import { applySurgicalPatches, type PatchFailure, type PatchRequest } from '../brains/surgical_patcher';
 import type { BrainRole } from '../brains/brain_registry';
 import { detectEcosystem } from '../ecosystems';
@@ -37,6 +38,8 @@ import { sanitizeCommitMessage } from '../export';
 import { buildDeployEnv } from '../git_deploy';
 import { computeHealingScore } from '../healer';
 import type { LocalTextSynthesisOutput } from '../local_synthesis';
+import type { PeerReviewResult } from './peer_review_council';
+import type { PrecisionReport } from './precision_verifier';
 import { computeUnifiedDiffs, isSafeRelativePath, sha256Hex } from '../security';
 import type { DiffEntry, EcosystemKey, ExecutionVerifySummary, HealingReport, SecretFinding } from '../types';
 import { materializeWorkspaceFiles } from '../verifier';
@@ -240,6 +243,8 @@ export interface RepoIngestResult {
   files: Record<string, string>;
   index: RepoIndexSummary;
   indexPrompt: string;
+  /** In-memory full index used by the v3 dependency graph; never serialized. */
+  fullIndex?: RepoIndex;
   at: string;
 }
 
@@ -421,6 +426,7 @@ export function ingestLocalRepository(repoPath: string, options: IngestOptions =
       warnings: index.warnings,
     },
     indexPrompt: formatIndexForPrompt(index),
+    fullIndex: index,
     at: new Date().toISOString(),
   };
 }
@@ -663,8 +669,9 @@ function buildEvolutionPrompt(params: {
   assignments: DepartmentAssignment[];
   ingest: RepoIngestResult;
   baseline: RepoAuditReport;
+  focusedContext?: string;
 }): string {
-  const { mode, goal, assignments, ingest, baseline } = params;
+  const { mode, goal, assignments, ingest, baseline, focusedContext } = params;
   const findings = [
     ...baseline.security.secrets.map((f) => `SECRET ${f.file}:${f.line} — ${f.type}`),
     ...baseline.security.staticIssues.map((issue) => `STATIC ${issue}`),
@@ -693,6 +700,7 @@ function buildEvolutionPrompt(params: {
       findings.length ? `findings:\n${findings.join('\n')}` : 'findings: none',
     ].join('\n'),
     `Repository symbol map:\n${ingest.indexPrompt}`,
+    `Focused dependency context (callers/callees of the affected file only; ${focusedContext ? 'bounded' : 'unavailable'}):\n${(focusedContext || '').slice(0, 12_000) || 'none'}`,
     `Editable file excerpts (the only files you may patch; patches update existing files only):\n${buildEditableContext(ingest.files, baseline, goal)}`,
     'Return STRICT JSON only: {"patches":[{"path":"relative/file.ts","search":"exact existing text","replace":"replacement text","occurrence":1}]}',
     [
@@ -871,6 +879,23 @@ export interface RepoIngestDeps extends RepoAuditDeps {
   }) => Promise<{ files: Record<string, string>; report: HealingReport } | null>;
   store?: RepoIngestStore;
   onEvent?: (event: RepoIngestEvent) => void;
+  /** v3: adversarial review before promotion. */
+  peerReview?: (input: {
+    workspaceDir: string;
+    problemStatement: string;
+    departments: Array<{ id: string; score: number }>;
+    files: Record<string, string>;
+    verification: ExecutionVerifySummary;
+    focusedContext?: string;
+  }) => Promise<PeerReviewResult>;
+  /** v3: real precision/boundary measurement. */
+  precision?: (input: {
+    label: string;
+    departments: Array<{ id: string; score: number }>;
+    verification: ExecutionVerifySummary;
+    files: Record<string, string>;
+    workspaceDir: string;
+  }) => Promise<PrecisionReport>;
 }
 
 export interface EvolveOptions {
@@ -904,6 +929,9 @@ export interface EvolutionOutcome {
   diffs: DiffEntry[];
   patchFailures: PatchFailure[];
   healing?: HealingReport;
+  peerReview?: PeerReviewResult;
+  precision?: PrecisionReport;
+  blastRadius?: { target: string; direct: number; transitive: number; cycles: number };
   commitSha?: string;
   commitError?: string;
   stages: RepoIngestEvent[];
@@ -1036,9 +1064,29 @@ export async function evolveAndHardenRepo(
     }
 
     // 3. Local-only patch generation (coder/healer brain profile, fail-closed).
+    // v3: the prompt receives a bounded caller/callee slice from the real
+    // cross-language dependency graph instead of the entire repository.
     const role: BrainRole = options.mode === 'harden-only' ? 'healer' : 'coder';
     outcome.brainRole = role;
-    const prompt = buildEvolutionPrompt({ mode: options.mode, goal: options.goal, assignments, ingest, baseline });
+    const analyzer = createDependencyAnalyzer(ingest.fullIndex || { root: ingest.repoPath, files: [], symbols: [], truncated: false, warnings: [] });
+    const targetFile =
+      baseline.security.secrets[0]?.file ||
+      Object.keys(ingest.files).find((file) => options.goal && ingest.files[file].toLowerCase().includes(options.goal.toLowerCase().split(' ')[0])) ||
+      analyzer.graph.nodes[0] ||
+      Object.keys(ingest.files)[0];
+    const radius = analyzer.computeBlastRadius(targetFile, undefined, ingest.files);
+    const focusedContext = analyzer.buildFocusedContextSlice(radius, ingest.files, 12_000);
+    outcome.blastRadius = {
+      target: radius.targetFile,
+      direct: radius.directDependents.length,
+      transitive: radius.transitiveDependents.length,
+      cycles: analyzer.findCycles().length,
+    };
+    emit(
+      'DEPARTMENTS',
+      `graph=${analyzer.graph.nodes.length} edges=${analyzer.graph.edges.length} blast=${radius.directDependents.length}+${radius.transitiveDependents.length} cycles=${outcome.blastRadius.cycles}`,
+    );
+    const prompt = buildEvolutionPrompt({ mode: options.mode, goal: options.goal, assignments, ingest, baseline, focusedContext });
     const synthesis = await deps.synthesize({
       role,
       title: `repository ${options.mode}`,
@@ -1135,7 +1183,7 @@ export async function evolveAndHardenRepo(
     }
     outcome.healing = healing;
 
-    const scoreAfter = computeHealingScore(candidate, verification);
+    let scoreAfter = computeHealingScore(candidate, verification);
     outcome.scoreAfter = scoreAfter;
     outcome.final = {
       at: new Date().toISOString(),
@@ -1147,7 +1195,7 @@ export async function evolveAndHardenRepo(
       security,
     };
 
-    const changedFiles = Object.keys(candidate)
+    let changedFiles = Object.keys(candidate)
       .filter((rel) => candidate[rel] !== ingest.files[rel])
       .sort();
     outcome.changedFiles = changedFiles;
@@ -1158,6 +1206,72 @@ export async function evolveAndHardenRepo(
       outcome.errorDetail = 'candidate files are byte-identical to the originals';
       emit('NO_CHANGES', outcome.errorDetail);
       return;
+    }
+
+    // 6b. v3 gates: adversarial peer review + real precision measurement.
+    // Both run BEFORE the first byte of the original repository is written.
+    if (deps.peerReview) {
+      const review = await deps.peerReview({
+        workspaceDir: ingest.workspacePath,
+        problemStatement: options.goal || `harden repository ${validation.resolved}`,
+        departments: assignments.map((a) => ({ id: a.department.id, score: a.score })),
+        files: candidate,
+        verification,
+        focusedContext,
+      });
+      outcome.peerReview = review;
+      if (review.remediationApplied && review.files) {
+        candidate = review.files;
+        verification = await deps.verify(ingest.workspacePath, candidate, ingest.ecosystemKey);
+        security = deps.scan(candidate);
+        emit('SECURITY_AUDIT', `after peer remediation exit=${verification.exitCode} secrets=${security.secrets.length}`);
+      }
+      if (!review.passed) {
+        fail('PEER_REVIEW_REJECTED', review.findings
+          .filter((item) => item.severity === 'CRITICAL' || item.severity === 'HIGH')
+          .map((item) => `${item.id}@${item.file}:${item.line}`)
+          .slice(0, 6)
+          .join(', '));
+        return;
+      }
+    }
+    if (deps.precision) {
+      const report = await deps.precision({
+        label: outcome.runId,
+        departments: assignments.map((a) => ({ id: a.department.id, score: a.score })),
+        verification,
+        files: candidate,
+        workspaceDir: ingest.workspacePath,
+      });
+      outcome.precision = report;
+      if (!report.passed) {
+        fail('PRECISION_REJECTED', report.findings.map((item) => item.id).join(', '));
+        return;
+      }
+    }
+    if (outcome.peerReview?.remediationApplied) {
+      scoreAfter = computeHealingScore(candidate, verification);
+      outcome.scoreAfter = scoreAfter;
+      changedFiles = Object.keys(candidate)
+        .filter((rel) => candidate[rel] !== ingest.files[rel])
+        .sort();
+      outcome.changedFiles = changedFiles;
+      outcome.diffs = boundedDiffs(ingest.files, candidate);
+      outcome.final = {
+        at: new Date().toISOString(),
+        workspacePath: ingest.workspacePath,
+        ecosystemKey: ingest.ecosystemKey,
+        score: scoreAfter,
+        filesScanned: Object.keys(candidate).length,
+        verification,
+        security,
+      };
+      if (changedFiles.length === 0) {
+        outcome.status = 'no_changes';
+        outcome.errorDetail = 'peer remediation restored the original bytes';
+        emit('NO_CHANGES', outcome.errorDetail);
+        return;
+      }
     }
 
     // 7. Atomic promotion gate: score holds/improves AND no new finding AND
