@@ -11,8 +11,8 @@ sh scripts/bootstrap.sh --pull-models    # يسحب النماذج صراحةً 
 npm install
 cp .env.example .env.local   # أضف GEMINI_API_KEY اختيارياً للتوليد السحابي
 npm run dev                  # http://127.0.0.1:3000
-npm test                     # 125 اختبار وحدة/تكامل
-npm run test:e2e             # 11 اختبار متصفح حقيقية (Playwright)
+npm test                     # 138 اختبار وحدة/تكامل
+npm run test:e2e             # 12 اختبار متصفح حقيقية (Playwright)
 npm run check                # lint + test + secrets + doctor
 ```
 
@@ -210,9 +210,24 @@ curl http://localhost:3000/api/status | jq '.voice'   # offline_stt_ready, bilin
 - **HUD:** push-to-talk, hands-free continuous conversation, instant barge-in, live state/engine badges, transcript history and a text-input fallback. All labels are in `src/lib/i18n.ts`.
 - **Events:** each conversation publishes `event: voice` on `/api/events`.
 
+## v3 security & pair-programming
+
+The Enterprise tab now exposes the dependency graph, taint findings and the cryptographic ledger. Voice or REST can query all of them:
+
+```bash
+curl -X POST http://localhost:3000/api/enterprise/graph \
+  -H 'Content-Type: application/json' \
+  -d '{"path":"E:\\code\\my-repo","targetFile":"src/index.ts"}'
+curl -X POST http://localhost:3000/api/security/taint-scan \
+  -H 'Content-Type: application/json' -d '{"path":"E:\\code\\my-repo"}'
+curl http://localhost:3000/api/security/ledger
+```
+
+`POST /api/security/taint-scan` traces untrusted sources into CWE-78/89/22/94/79 sinks across eight languages. `GET /api/security/ledger` returns recent entries plus `verifyLedgerIntegrity()`: each entry is `SHA256(prevHash|seq|timestamp|actor|action|target|outcomeHash)` with genesis hash `0…0`, so edits, deletions and reordering are detectable. Voice supports “What is the blast radius of …?” / «ما تأثير تعديل ملف…» and “Verify audit ledger integrity” / «افحص سلامة سجل التدقيق».
+
 ## Verification & integrity policy
 
-- `npm test` runs **every** unit/integration test file under `src/lib/*.test.ts` (28 files, 125 cases). Browser tests are separate: `npm run test:e2e` (11 cases, including full bilingual shell parity and a bilingual voice dialogue roundtrip). It is the
+- `npm test` runs **every** unit/integration test file under `src/lib/*.test.ts` (31 files, 138 cases). Browser tests are separate: `npm run test:e2e` (12 cases, including full bilingual shell parity, a bilingual voice dialogue roundtrip and the v3 security panels). It is the
   canonical check; `npm run lint` / `npx tsc --noEmit` must also pass with zero errors.
 - Verification reports count **only tests the OS runner actually executed**. When no test
   suite exists in a generated project, the report says so explicitly instead of inventing

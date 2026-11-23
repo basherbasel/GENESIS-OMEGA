@@ -254,14 +254,14 @@ npm run lint && npm test
 | 5 — الحوار الصوتي | ✅ | `VoiceHud` + `voice_dialogue` + STT محلي + Piper ثنائي اللغة |
 | 4د — لغة إنجليزية | ✅ | `i18n.ts` + زر تبديل + اختبار E2E |
 
-### 14.2 خريطة الملفات (133 ملف متتبع)
+### 14.2 خريطة الملفات (136 ملف متتبع)
 
 | المسار | Count | الوظيفة |
 |---|---|---|
 | `server.ts` | 1 | Express + كل المسارات + SSE + طابور المهام + خط الإنتاج + الحوار الصوتي |
 | `src/App.tsx` + `main.tsx` + `index.css` | 3 | إدارة الواجهة والتنقل والبث المباشر |
 | `src/components/` | 12 | Studio / Dashboard / Vault / Watch / Migration / Catalog / Export / HUD / VoiceHud / Nav / Auth / Enterprise |
-| `src/lib/` | 78 | وحدات إنتاج + 30 اختباراً + `i18n.ts` بـ 469 مفتاحاً + `voice/` (4) + `brains/dependency_graph` + `enterprise/peer_review_council` و`precision_verifier` |
+| `src/lib/` | 81 | وحدات إنتاج + 31 اختباراً + `i18n.ts` بـ 502 مفتاحاً + `voice/` (4) + `security/` (3) + وحدات v3 |
 | `scripts/` | 8 | backup / restore / doctor / check-secrets / Job Object / bootstrap.ps1 / bootstrap.sh / vosk adapter |
 | `.github/workflows/ci.yml` | 1 | بوابات CI الأربع |
 | جذر المشروع | 27 | توثيق + LICENSE + CONTRIBUTING + إعدادات + مرآة المتجر + حزمة التأمينات |
@@ -282,7 +282,7 @@ npm run lint && npm test
 
 ```
 npm run lint        → tsc --noEmit
-npm test            → 134 pass / 0 fail / 0 skipped
+npm test            → 138 pass / 0 fail / 0 skipped
 npm run check       → lint + test + check:secrets + doctor = exit 0
 npm run doctor      → critical 9/9
 npm run doctor -- --ci → 4/4 مُنفَّذ + 5 مُعلَن تخطيها
@@ -310,6 +310,7 @@ npm run restore -- <dir> --yes → RESTORE_OK
 | 4 — الجاهزية مفتوحة المصدر | ✅ منجزة | `LICENSE` · `CONTRIBUTING.md` · `SECURITY.md` · `scripts/bootstrap.ps1/.sh` · شلّ ثنائي اللغة بالكامل · 10 اختبارات E2E |
 | 5 — الحوار الصوتي ثنائي اللغة | ✅ منجزة | `voice/voice_dialogue.ts` · `voice/offline_stt.ts` · `VoiceHud.tsx` · 10 اختبارات + E2E حواري |
 | v3 الجزء 1 — الرسم/Build Radius، مجلس المراجعة، مقياس الدقة | ✅ منجزة | `brains/dependency_graph.ts` · `enterprise/peer_review_council.ts` · `enterprise/precision_verifier.ts` + 9 اختبارات |
+| v3 الجزء 2 — تلوث، سجل مشفّر، pair-programmer، واجهات v3 | ✅ منجزة | `security/taint_scanner.ts` · `security/audit_ledger.ts` · مسارات `/api/security/*` · لوحات Enterprise v3 + 4 اختبارات |
 
 **ما أُنجز فعلياً في المرحلة 1:**
 - 4 ملفات عقول (`architect`, `coder`, `healer`, `auditor`) ببارامترات حتمية (temperature 0.05–0.25، num_ctx 4096–8192) وعقود نظام، مع اختيار نموذج Ollama مثبّت فقط — لا معرّف سحابي واحد.
@@ -351,7 +352,14 @@ npm run restore -- <dir> --yes → RESTORE_OK
 - `enterprise/precision_verifier.ts`: قياس زمن حقيقي وpeak RSS عبر `process.resourceUsage()`، تكرار للتحقق من الحتمية، كشف `NaN/Infinity`، وتحقق حدودي للنطاقات `physics-simulation` و`algorithms-optimization` و`ai-ml-signal` و`embedded-iot` و`data-engineering`؛ ترفض البوابة بـ `PRECISION_REJECTED`.
 - 4 اختبارات رسم + 5 اختبارات مراجعة/دقة، و`npm test` → 134/134.
 
-**التالي:** لا مرحلة تالية في خارطة v2.0 — الإصدار جاهز للمراجعة النهائية؛ أي عمل جديد يُسجَّل أولاً في `BACKLOG.md` بقرار وتاريخ.
+**ما أُنجز فعلياً في v3 الجزء 2 (اكتمال v3.0):**
+- `security/taint_scanner.ts`: تتبّع مصادر غير موثوقة إلى مخاطر `CWE-78/89/22/94/79` عبر JS/TS وPython وC/C++ وPHP وGo وJava وC# وRuby، مع بوابة صفرية للكود المُطهَّر؛ مُدمج في `SECURITY_AUDIT` لأوامر العمل وفي `auditIngestedRepo`.
+- `security/audit_ledger.ts`: سجل append-only محفوظ في meta `auditLedger` بـ SQLite WAL، يحسب `SHA256(prevHash|seq|timestamp|actor|action|target|outcomeHash)` ببداية `0...0`، ويتحقق من التسلسل والسلسلة ويكشف العبث والحذف وإعادة الترتيب. كل أمر عمل/ترقية مستودع/فحص تلوث/إجراء صوتي يُسجَّل ويُبث على `ledger`.
+- برمجة صوتية تفاعلية: استعلامات الرسم ونطاق التأثير وسلامة السجل وفحص التلوث وإدارة الأوامر بالعربية والإنجليزية عبر نوايا حتمية وربط مباشر بالمحركات الحقيقية. مسارات `POST /api/enterprise/graph` و`POST /api/security/taint-scan` و`GET /api/security/ledger` مع `validateRepoRoot` قبل أي قراءة.
+- ثلاث لوحات جديدة في `EnterpriseView` (رسم/تأثير، تلوث/مراجعة، سجل مشفّر) بمفاتيح عربية/إنجليزية كاملة (502 مفتاحاً)، وE2E ثاني عشر يتحقق من اللوحات والحوار في اللغتين.
+- 3 اختبارات أمنية جديدة + اختبار صوتي v3، و`npm test` → 138/138، E2E → 12/12.
+
+**التالي:** لا مرحلة تالية في خارطة v2.0/v3.0 — الإصدار جاهز للمراجعة النهائية؛ أي عمل جديد يُسجَّل أولاً في `BACKLOG.md` بقرار وتاريخ.
 
 **التوقيع:** المهندس بشار — owner & executor
 **آخر تحديث:** 23 نوفمبر 2026

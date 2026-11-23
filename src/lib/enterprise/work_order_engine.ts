@@ -15,6 +15,7 @@ import type { BrainRole } from '../brains/brain_registry';
 import type { LocalSynthesisOutput } from '../local_synthesis';
 import { isSafeRelativePath } from '../security';
 import { computeHealingScore } from '../healer';
+import { scanTaintFlows } from '../security/taint_scanner';
 import type { PeerReviewResult } from './peer_review_council';
 import type { PrecisionReport } from './precision_verifier';
 import type { EcosystemKey, ExecutionVerifySummary, HealingReport } from '../types';
@@ -142,6 +143,15 @@ export class WorkOrderEngine {
     return this.orders.find((order) => order.id === id);
   }
 
+  /** v3: real cancellation path for voice/UI control (no fabricated state). */
+  cancel(id: string, reason = 'cancelled by operator'): WorkOrder | null {
+    const order = this.get(id);
+    if (!order) return null;
+    if (order.stage === 'VERIFIED_COMMIT' || order.stage === 'FAILED_CLOSED') return order;
+    this.fail(order, 'CANCELLED', order.stage, reason);
+    return order;
+  }
+
   create(input: CreateWorkOrderInput): WorkOrder {
     const assignments = classifyDepartments(input);
     const now = new Date().toISOString();
@@ -185,9 +195,10 @@ export class WorkOrderEngine {
       }
 
       const scan = this.deps.scan(order.files);
-      this.transition(order, 'SECURITY_AUDIT', `secrets=${scan.secrets.length} staticIssues=${scan.staticIssues.length}`);
-      if (scan.secrets.length > 0 || scan.staticIssues.length > 0) {
-        return this.needsHealing(order, verification, 'SECURITY_AUDIT_FAILED');
+      const taint = scanTaintFlows(order.files);
+      this.transition(order, 'SECURITY_AUDIT', `secrets=${scan.secrets.length} staticIssues=${scan.staticIssues.length} taint=${taint.length}`);
+      if (scan.secrets.length > 0 || scan.staticIssues.length > 0 || taint.length > 0) {
+        return this.needsHealing(order, verification, taint.length > 0 ? 'TAINT_SCAN_FAILED' : 'SECURITY_AUDIT_FAILED');
       }
 
       return this.finalize(order, verification);
@@ -289,8 +300,9 @@ export class WorkOrderEngine {
       return order;
     }
     const scan = this.deps.scan(order.files);
-    if (scan.secrets.length > 0 || scan.staticIssues.length > 0) {
-      this.fail(order, 'SECURITY_AUDIT_FAILED', 'SELF_HEALING', `secrets=${scan.secrets.length} staticIssues=${scan.staticIssues.length}`);
+    const taint = scanTaintFlows(order.files);
+    if (scan.secrets.length > 0 || scan.staticIssues.length > 0 || taint.length > 0) {
+      this.fail(order, taint.length > 0 ? 'TAINT_SCAN_FAILED' : 'SECURITY_AUDIT_FAILED', 'SELF_HEALING', `secrets=${scan.secrets.length} staticIssues=${scan.staticIssues.length} taint=${taint.length}`);
       return order;
     }
     this.transition(order, 'VERIFIED_COMMIT', 'healed and re-verified');

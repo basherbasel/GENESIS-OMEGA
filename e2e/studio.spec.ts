@@ -213,6 +213,38 @@ test('لوحة الحوار الصوتي تنفذ محادثة عربية وإن
   await page.evaluate(() => (window as VoiceWindow).__voiceSource?.close());
 });
 
+test('لوحات v3 الأمنية ونطاق التأثير تعمل بالعربية والإنجليزية', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'أوامر الشركة' }).click();
+  const repoInput = page.getByPlaceholder('مسار المستودع على القرص');
+  await repoInput.fill(process.cwd().replace(/\\/g, '/'));
+
+  await page.getByRole('button', { name: 'تحليل الرسم' }).click();
+  await expect(page.getByTestId('enterprise-graph-result')).toBeVisible({ timeout: 30_000 });
+  await page.getByRole('button', { name: 'فحص التلوث' }).click();
+  await expect(page.getByTestId('enterprise-taint-findings')).toBeVisible({ timeout: 30_000 });
+  await page.getByRole('button', { name: 'التحقق من السجل' }).click();
+  await expect(page.getByTestId('enterprise-ledger-result')).toContainText('سليم', { timeout: 30_000 });
+
+  // Voice pair-programmer: Arabic blast radius, English ledger verification.
+  await page.getByTestId('voice-input').fill('ما تأثير تعديل ملف repo_indexer.ts؟');
+  await page.getByTestId('voice-send').click();
+  await expect(page.getByTestId('voice-reply').last()).toContainText(/يؤثر|تأثير/, { timeout: 30_000 });
+
+  await page.getByRole('button', { name: 'English' }).click();
+  await page.getByTestId('voice-input').fill('Verify audit ledger integrity');
+  await page.getByTestId('voice-send').click();
+  await expect(page.getByTestId('voice-reply').last()).toContainText('audit ledger', { timeout: 30_000 });
+
+  await page.getByRole('button', { name: 'Work Orders' }).click();
+  await expect(page.getByText('Dependency graph & blast radius')).toBeVisible();
+  await expect(page.getByText('Static taint & peer-review findings')).toBeVisible();
+  await expect(page.getByText('Cryptographic audit ledger')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Analyze graph' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Scan taint' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Verify ledger' })).toBeVisible();
+});
+
 test('صيانة مستودع قائم: تدقيق حقيقي ورفض مسار غير آمن وعرض اللوحة', async ({ page, request }) => {
   const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'omega-e2e-ingest-'));
   fs.writeFileSync(

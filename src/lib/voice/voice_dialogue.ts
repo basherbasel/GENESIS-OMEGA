@@ -21,6 +21,10 @@ export type VoiceIntent =
   | 'switch_language'
   | 'doctor_status'
   | 'summarize_orders'
+  | 'graph_blast'
+  | 'ledger_verify'
+  | 'taint_scan'
+  | 'order_control'
   | 'dialogue';
 
 export interface VoiceDialogueEvent {
@@ -49,6 +53,17 @@ export interface VoiceDialogueDeps {
   healProject?: (projectId: number) => Promise<{ attempts: number; finalScore?: number }>;
   switchLanguage?: (lang: Language) => void;
   doctorSummary?: () => Promise<string> | string;
+  /** v3 pair-programmer probes; all injected by the server. */
+  graph?: (targetFile?: string, repoPath?: string) => Promise<{
+    cycles: number;
+    nodes: number;
+    direct: number;
+    transitive: number;
+    files: string[];
+  }>;
+  ledger?: () => Promise<{ valid: boolean; entries: number; detail?: string }>;
+  taint?: (repoPath?: string) => Promise<{ findings: number; cwes: string[] }>;
+  orderControl?: (action: 'approve' | 'cancel', id?: string) => Promise<{ id: string; stage: string }>;
   installedModels?: ReadonlySet<string>;
   model?: string;
   synthesizeText?: typeof synthesizeTextWithBridge;
@@ -96,6 +111,9 @@ export function routeVoiceIntent(text: string, lang: Language): VoiceIntent {
   if (/\b(build|create|make|start)\b/.test(value) && /\b(system|service|work order|project|app|api)\b/.test(value)) {
     return 'work_order';
   }
+  if (/(فحص|امسح|افحص).*(تلوث|حقن|ثغرات|taint)/.test(value) || /\btaint scan\b|\bscan\b.*\binjection\b/.test(value)) {
+    return 'taint_scan';
+  }
   if (/(حص[ّن]?ن|افحص|دق[ّق]?ق|فحص|امسح)/.test(value) && /(مشروع|مستودع|مجلد|مسار|repo)/.test(value)) {
     return /(حص[ّن]?ن|harden)/.test(value) ? 'repo_harden' : 'repo_audit';
   }
@@ -113,6 +131,18 @@ export function routeVoiceIntent(text: string, lang: Language): VoiceIntent {
   if (/(لخ[ّص]?ص|ملخص|اعرض).*(أوامر|مشاريع)|حالة الأوامر/.test(value) || /\b(summarize|list|status)\b.*\b(work orders|orders|projects)\b/.test(value)) {
     return 'summarize_orders';
   }
+  if (/(تأثير|نطاق|اعتماد|دورات|دورة).*(ملف|وحدة|مستودع|دالة|كود)/.test(value) || /\b(blast radius|impact|dependents|cycle)\b/.test(value)) {
+    return 'graph_blast';
+  }
+  if (/(سلامة|تحقق|افحص).*(سجل التدقيق|السجل|التدقيق المتسلسل)/.test(value) || /سجل التدقيق/.test(value) || /\b(verify|check)\b.*\b(audit ledger|ledger integrity|hash chain)\b/.test(value)) {
+    return 'ledger_verify';
+  }
+  if (/(فحص|امسح|افحص).*(تلوث|حقن|ثغرات|taint)/.test(value) || /\btaint scan\b|\bscan\b.*\binjection\b/.test(value)) {
+    return 'taint_scan';
+  }
+  if (/(وافق|اعتمد|ألغي|أوقف|إلغاء).*(أمر|طلب)/.test(value) || /\b(approve|cancel)\b.*\b(work order|order)\b/.test(value)) {
+    return 'order_control';
+  }
   return 'dialogue';
 }
 
@@ -125,11 +155,22 @@ function extractProjectId(text: string): number | null {
   return match ? Number(match[1]) : null;
 }
 
+function extractProjectIdString(text: string): string | undefined {
+  return /#([\w-]+)/.exec(text)?.[1];
+}
+
 function extractRepoPath(text: string): string | null {
   const quoted = /"([^"]+)"|'([^']+)'/.exec(text);
   if (quoted) return (quoted[1] || quoted[2]).trim();
   const hinted = /(?:في|على|المسار|المجلد|at|in|path|under)\s+([A-Za-z]:[\\/][^\s]+|[\\/][^\s]+|[\w.-]+[\\/][^\s]+)/i.exec(text);
   return hinted ? hinted[1].trim() : null;
+}
+
+function extractTargetFile(text: string): string | undefined {
+  const quoted = /"([^"]+\.(?:ts|tsx|js|jsx|py|go|rs|c|cpp|java|cs|php|rb))"|'([^']+\.(?:ts|tsx|js|jsx|py|go|rs|c|cpp|java|cs|php|rb))'/i.exec(text);
+  if (quoted) return quoted[1] || quoted[2];
+  const bare = /\b([\w./-]+\.(?:ts|tsx|js|jsx|py|go|rs|c|cpp|java|cs|php|rb))\b/i.exec(text);
+  return bare?.[1];
 }
 
 function extractLanguage(text: string, fallback: Language): Language {
@@ -288,6 +329,59 @@ export async function processVoiceDialogue(
         t(lang, 'voice.ordersSummary', { n: orders.length, stages: orders.slice(0, 4).map((o) => o.stage).join(', ') || '—' }),
         true,
         { kind: 'summarize_orders', count: orders.length },
+      );
+    }
+
+    if (intent === 'graph_blast') {
+      if (!deps.graph) return done(t(lang, 'voice.actionUnavailable'), false, null, 'ACTION_UNAVAILABLE');
+      const target = extractTargetFile(utterance);
+      const graph = await deps.graph(target, extractRepoPath(utterance) || undefined);
+      return done(
+        t(lang, 'voice.graphSummary', {
+          file: target || '*',
+          cycles: graph.cycles,
+          nodes: graph.nodes,
+          direct: graph.direct,
+          transitive: graph.transitive,
+        }),
+        true,
+        { kind: 'graph_blast', ...graph },
+      );
+    }
+
+    if (intent === 'ledger_verify') {
+      if (!deps.ledger) return done(t(lang, 'voice.actionUnavailable'), false, null, 'ACTION_UNAVAILABLE');
+      const ledger = await deps.ledger();
+      return done(
+        t(lang, ledger.valid ? 'voice.ledgerOk' : 'voice.ledgerBroken', { n: ledger.entries, detail: ledger.detail || '' }),
+        true,
+        { kind: 'ledger_verify', ...ledger },
+      );
+    }
+
+    if (intent === 'taint_scan') {
+      if (!deps.taint) return done(t(lang, 'voice.actionUnavailable'), false, null, 'ACTION_UNAVAILABLE');
+      const repoPath = extractRepoPath(utterance);
+      if (!repoPath) return done(t(lang, 'voice.repoPathMissing'), false, null, 'REPO_PATH_MISSING');
+      const validation = validateRepoRoot(repoPath);
+      if (!validation.ok) return done(t(lang, 'voice.unsafeRepoPath'), false, null, validation.code || 'UNSAFE_REPO_PATH');
+      const scan = await deps.taint(validation.resolved);
+      return done(
+        t(lang, 'voice.taintSummary', { n: scan.findings, cwes: scan.cwes.slice(0, 5).join(', ') || '—' }),
+        true,
+        { kind: 'taint_scan', ...scan },
+      );
+    }
+
+    if (intent === 'order_control') {
+      if (!deps.orderControl) return done(t(lang, 'voice.actionUnavailable'), false, null, 'ACTION_UNAVAILABLE');
+      const action = /(?:ألغي|إلغاء|توقف|cancel)/.test(utterance) ? 'cancel' : 'approve';
+      const id = /(?:wo-|order\s*)([\w-]+)/i.exec(utterance)?.[1] || extractProjectIdString(utterance);
+      const controlled = await deps.orderControl(action, id);
+      return done(
+        t(lang, 'voice.orderControlled', { action, id: controlled.id, stage: controlled.stage }),
+        true,
+        { kind: 'order_control', action, ...controlled },
       );
     }
   } catch (err) {

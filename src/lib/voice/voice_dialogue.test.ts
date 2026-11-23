@@ -312,3 +312,43 @@ test('voice converse contract returns the bilingual response envelope used by th
   assert.ok(envelope.replyText.includes('1'));
   assert.equal(typeof envelope.ttsEngine, 'string');
 });
+
+test('v3 voice intents report blast radius, ledger integrity and taint findings in both languages', async () => {
+  assert.equal(routeVoiceIntent('ما تأثير تعديل ملف repo_indexer.ts؟', 'ar'), 'graph_blast');
+  assert.equal(routeVoiceIntent('What is the blast radius of repo_indexer.ts?', 'en'), 'graph_blast');
+  assert.equal(routeVoiceIntent('افحص سلامة سجل التدقيق', 'ar'), 'ledger_verify');
+  assert.equal(routeVoiceIntent('Verify audit ledger integrity', 'en'), 'ledger_verify');
+  assert.equal(routeVoiceIntent('taint scan at /repo', 'en'), 'taint_scan');
+
+  let graphFile: string | undefined;
+  const deps: VoiceDialogueDeps = {
+    graph: async (targetFile) => {
+      graphFile = targetFile;
+      return { cycles: 1, nodes: 12, direct: 2, transitive: 3, files: ['a.ts', 'b.ts'] };
+    },
+    ledger: async () => ({ valid: true, entries: 7, detail: 'hash chain intact' }),
+    taint: async (repoPath) => {
+      assert.ok(repoPath);
+      return { findings: 2, cwes: ['CWE-78', 'CWE-89'] };
+    },
+  };
+
+  const ar = await processVoiceDialogue({ transcript: 'ما تأثير تعديل ملف repo_indexer.ts؟' }, deps);
+  assert.equal(ar.intent, 'graph_blast');
+  assert.equal(graphFile, 'repo_indexer.ts');
+  assert.equal(ar.actionExecuted, true);
+  assert.match(ar.replyText, /يؤثر|تأثير/);
+
+  const en = await processVoiceDialogue({ transcript: 'Verify audit ledger integrity', preferredLang: 'en' }, deps);
+  assert.equal(en.intent, 'ledger_verify');
+  assert.match(en.replyText, /audit ledger/i);
+
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'omega-voice-taint-'));
+  try {
+    const taint = await processVoiceDialogue({ transcript: `taint scan at "${repo}"`, preferredLang: 'en' }, deps);
+    assert.equal(taint.intent, 'taint_scan');
+    assert.ok(taint.replyText.includes('CWE-78'));
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});

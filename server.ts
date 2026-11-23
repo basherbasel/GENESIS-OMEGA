@@ -60,6 +60,13 @@ import {
   type OllamaStatus,
 } from './src/lib/ollama_client';
 import { formatSseFrame, studioEvents } from './src/lib/event_bus';
+import { indexRepository } from './src/lib/brains/repo_indexer';
+import {
+  buildDependencyGraph,
+  computeBlastRadius,
+  findCycles,
+  topologicalOrder,
+} from './src/lib/brains/dependency_graph';
 import { studioJobs } from './src/lib/job_queue';
 import { RateLimiter } from './src/lib/rate_limit';
 import { synthesizeTextWithBridge, synthesizeWithBridge } from './src/lib/local_synthesis';
@@ -98,6 +105,13 @@ import {
   scanSecretsAndSecurity,
   validateRedTeamScript,
 } from './src/lib/security';
+import { scanTaintFlows } from './src/lib/security/taint_scanner';
+import {
+  appendAuditEntry,
+  verifyLedgerIntegrity,
+  type AuditEntry,
+  type AuditLedgerStore,
+} from './src/lib/security/audit_ledger';
 import type {
   AgentRole,
   BenchmarkReport,
@@ -142,6 +156,32 @@ const HOST = process.env.HOST || '127.0.0.1';
 assertSecureBinding(HOST, process.env.OMEGA_API_KEY);
 
 const STORE_REPOSITORY = new StoreRepository(path.join(DATA_DIR, 'omega_store.db'), STORE_PATH);
+
+// v3 Part 2: append-only hash-chained ledger persisted in the same SQLite WAL.
+const auditStore: AuditLedgerStore = {
+  load: () => {
+    const raw = STORE_REPOSITORY.getMetaValue('auditLedger');
+    if (!raw) return [];
+    try {
+      const parsed = JSON.parse(raw) as AuditEntry[];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  },
+  save: (entries) => STORE_REPOSITORY.setMetaValue('auditLedger', JSON.stringify(entries)),
+};
+const recordAudit = (action: string, target: string, outcome: unknown, detail?: string): AuditEntry => {
+  const entry = appendAuditEntry(auditStore, {
+    actor: 'genesis-omega',
+    action,
+    target,
+    outcome,
+    ...(detail ? { detail } : {}),
+  });
+  studioEvents.publish('ledger', { seq: entry.seq, hash: entry.hash, action, target });
+  return entry;
+};
 
 function getAiClient(): GoogleGenAI | null {
   const apiKey = (process.env.GEMINI_API_KEY || '').trim();
@@ -1142,7 +1182,18 @@ async function startServer() {
     peerReview: peerReviewFor,
     precision: async ({ label, departments, files, workspaceDir }) =>
       precisionGate(label, departments, files, workspaceDir),
-    onEvent: (event) => studioEvents.publish('work_order', event),
+    onEvent: (event) => {
+      studioEvents.publish('work_order', event);
+      if (event.stage === 'VERIFIED_COMMIT' || event.stage === 'FAILED_CLOSED') {
+        const order = workOrderEngine.get(event.orderId);
+        recordAudit(
+          `work_order.${event.stage.toLowerCase()}`,
+          event.orderId,
+          { stage: event.stage, score: order?.finalScore, errorCode: event.errorCode },
+          order?.title,
+        );
+      }
+    },
   });
 
   // v2 Phase 3: ingestion, baseline auditing and atomic evolution of existing
@@ -1194,7 +1245,17 @@ async function startServer() {
     peerReview: peerReviewFor,
     precision: async ({ label, departments, files, workspaceDir }) =>
       precisionGate(label, departments, files, workspaceDir),
-    onEvent: (event) => studioEvents.publish('ingest', event),
+    onEvent: (event) => {
+      studioEvents.publish('ingest', event);
+      if (event.stage === 'PROMOTED' || event.stage === 'FAILED_CLOSED') {
+        recordAudit(
+          `repo_ingest.${event.stage.toLowerCase()}`,
+          event.runId,
+          { stage: event.stage, errorCode: event.errorCode },
+          event.detail,
+        );
+      }
+    },
   };
 
   const piperTts = new PiperNeuralVoiceEngine({
@@ -1202,6 +1263,38 @@ async function startServer() {
     cacheDir: path.join(DATA_DIR, 'voice_cache'),
   });
   const offlineSttConfig = resolveOfflineStt();
+
+  // v3 pair-programmer probes shared by the voice router and REST routes.
+  const graphForPath = (repoPath: string, targetFile?: string) => {
+    const index = indexRepository(repoPath, { maxFiles: 600, maxBytesPerFile: 512 * 1024 });
+    const graph = buildDependencyGraph(index);
+    const cycles = findCycles(graph);
+    const order = topologicalOrder(graph);
+    const radius = targetFile ? computeBlastRadius(graph, targetFile, undefined, index) : null;
+    return {
+      root: graph.root,
+      nodes: graph.nodes,
+      edges: graph.edges.length,
+      unresolved: graph.unresolved.length,
+      cycles,
+      order,
+      ...(radius ? { radius } : {}),
+    };
+  };
+  const taintForPath = (repoPath: string) => {
+    const index = indexRepository(repoPath, { maxFiles: 600, maxBytesPerFile: 512 * 1024 });
+    const files: Record<string, string> = {};
+    for (const entry of index.files) {
+      try {
+        files[entry.path] = fs.readFileSync(path.join(index.root, entry.path), 'utf8').slice(0, 512 * 1024);
+      } catch {
+        // unreadable files are skipped, never fabricated
+      }
+    }
+    const findings = scanTaintFlows(files);
+    recordAudit('taint_scan', repoPath, { findings: findings.length }, `cwes=${[...new Set(findings.map((f) => f.cweId))].join(',')}`);
+    return findings;
+  };
 
   // v2 Phase 5: spoken intents execute the SAME real engines used by the REST
   // API. Every event is pushed to SSE topic `voice` for the full-duplex HUD.
@@ -1237,8 +1330,39 @@ async function startServer() {
     doctorSummary: () =>
       `Node ${process.version}; Ollama ${localModelStatus.online ? 'online' : 'offline'}; ` +
       `${installedBrains.size} local models; ${piperTts.status().bilingual_ready ? 'bilingual Piper ready' : 'Piper partial'}`,
+    graph: async (targetFile, repoPath) => {
+      const root = repoPath && validateRepoRoot(repoPath).ok ? path.resolve(repoPath) : process.cwd();
+      const result = graphForPath(root, targetFile);
+      return {
+        cycles: result.cycles.length,
+        nodes: result.nodes.length,
+        direct: result.radius?.directDependents.length || 0,
+        transitive: result.radius?.transitiveDependents.length || 0,
+        files: result.radius ? [...result.radius.directDependents, ...result.radius.transitiveDependents].slice(0, 8) : [],
+      };
+    },
+    ledger: async () => {
+      const entries = auditStore.load();
+      const verification = verifyLedgerIntegrity(entries);
+      return { ...verification, entries: verification.entries };
+    },
+    taint: async (repoPath) => {
+      const root = repoPath && validateRepoRoot(repoPath).ok ? path.resolve(repoPath) : process.cwd();
+      const findings = taintForPath(root);
+      return { findings: findings.length, cwes: [...new Set(findings.map((f) => f.cweId))] };
+    },
+    orderControl: async (action, id) => {
+      const order = id ? workOrderEngine.get(id) : workOrderEngine.list()[0];
+      if (!order) throw new Error('work order not found');
+      const next = action === 'cancel' ? workOrderEngine.cancel(order.id) : await workOrderEngine.run(order.id);
+      if (!next) throw new Error('work order not found');
+      return { id: next.id, stage: next.stage };
+    },
     installedModels: installedBrains,
-    onEvent: (event) => studioEvents.publish('voice', event),
+    onEvent: (event) => {
+      studioEvents.publish('voice', event);
+      recordAudit('voice_action', event.intent, { actionExecuted: event.actionExecuted, errorCode: event.errorCode }, event.lang);
+    },
   };
 
   // Secure, cache-friendly delivery of locally synthesized Piper WAV files.
@@ -1514,6 +1638,7 @@ code{background:#020617;padding:2px 6px;border-radius:4px;color:#38bdf8}</style>
     const offWorkOrder = studioEvents.subscribe('work_order', forward);
     const offIngest = studioEvents.subscribe('ingest', forward);
     const offVoice = studioEvents.subscribe('voice', forward);
+    const offLedger = studioEvents.subscribe('ledger', forward);
     const heartbeat = setInterval(() => {
       try {
         res.write(': ping\n\n');
@@ -1529,6 +1654,7 @@ code{background:#020617;padding:2px 6px;border-radius:4px;color:#38bdf8}</style>
       offWorkOrder();
       offIngest();
       offVoice();
+      offLedger();
       clearInterval(heartbeat);
     });
   });
@@ -1663,6 +1789,52 @@ code{background:#020617;padding:2px 6px;border-radius:4px;color:#38bdf8}</style>
   // v2 Phase 3: persisted ingest/evolve run history (bounded, newest first).
   app.get('/api/enterprise/ingest/runs', (_req, res) => {
     res.json({ runs: loadIngestRuns(ingestStore) });
+  });
+
+  // v3 Part 2: cross-language dependency graph + blast radius over a validated
+  // local repository. Never traverses system roots or symlinked escapes.
+  app.post('/api/enterprise/graph', (req, res) => {
+    const validation = validateRepoRoot(String(req.body?.path || ''));
+    if (!validation.ok) {
+      res.status(400).json({ code: validation.code, error: validation.message });
+      return;
+    }
+    try {
+      const targetFile = typeof req.body?.targetFile === 'string' ? req.body.targetFile : undefined;
+      const result = graphForPath(validation.resolved, targetFile);
+      res.json({
+        root: result.root,
+        nodes: result.nodes.length,
+        edges: result.edges,
+        unresolved: result.unresolved,
+        cycles: result.cycles,
+        buildOrder: result.order.slice(0, 100),
+        truncatedOrder: result.order.length > 100,
+        blastRadius: result.radius || null,
+      });
+    } catch (err) {
+      res.status(422).json({ code: 'GRAPH_FAILED', error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
+  // v3 Part 2: static taint scan with CWE evidence, persisted in the ledger.
+  app.post('/api/security/taint-scan', (req, res) => {
+    const validation = validateRepoRoot(String(req.body?.path || ''));
+    if (!validation.ok) {
+      res.status(400).json({ code: validation.code, error: validation.message });
+      return;
+    }
+    try {
+      const findings = taintForPath(validation.resolved);
+      res.json({ repoPath: validation.resolved, findings, count: findings.length });
+    } catch (err) {
+      res.status(422).json({ code: 'TAINT_SCAN_FAILED', error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
+  app.get('/api/security/ledger', (_req, res) => {
+    const entries = auditStore.load();
+    res.json({ entries: entries.slice(-50), verification: verifyLedgerIntegrity(entries) });
   });
 
   // 2. Projects CRUD & Pipeline

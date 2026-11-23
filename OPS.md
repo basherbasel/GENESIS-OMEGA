@@ -6,7 +6,7 @@
 
 | الركن | الملف المرجعي | ما يضمنه |
 |---|---|---|
-| جرد الملفات والاختبارات | `INVENTORY.md` | 128 ملفاً، 28 ملف اختبار، 125 حالة — بالأوامر لا بالتقدير |
+| جرد الملفات والاختبارات | `INVENTORY.md` | 136 ملفاً، 31 ملف اختبار، 138 حالة — بالأوامر لا بالتقدير |
 | مخزن الحالة | `data/omega_store.db` (WAL) + مرآة `omega_store.json` | كتابة ذرية، وهجرة تلقائية من المرآة عند الاستعادة |
 | البث المباشر | `GET /api/events` (SSE) | `event: ready` و`event: state` و`event: job`، نبضة كل 15 ثانية |
 | المهام الخلفية | `POST /api/jobs` + `GET /api/jobs/:id` | يُعيد `jobId` فوراً؛ الحالة `queued/running/done/failed` وتُدفع عبر SSE |
@@ -24,10 +24,10 @@
 ```
 npm run dev            تشغيل الاستوديو على 127.0.0.1:3000
 npm run backup         نسخ حالة التشغيل
-npm run check          lint + 125 اختبار + فحص أسرار + doctor
+npm run check          lint + 138 اختبار + فحص أسرار + doctor
 npm run doctor         فحص جاهزية مفصّل بجدول [✓/✗/—]
 npm run doctor -- --ci فحص CI: البوابات المحمولة تُنفَّذ، والبوابات المضيفة تُعلَن كمتخطاة لا كنجاح صامت
-npm run test:e2e    11 اختبارات متصفح حقيقية (Playwright chromium)، منفصلة عن npm test
+npm run test:e2e    12 اختبارات متصفح حقيقية (Playwright chromium)، منفصلة عن npm test
 npm run check:secrets  فحص الملفات المتتبعة لأنماط البيانات السرية
 scripts/bootstrap.ps1 [-PullModels]   تهيئة Windows (Node≥20 + Ollama + install + doctor + check)
 scripts/bootstrap.sh [--pull-models]  تهيئة Linux/macOS (نفس البوابات)
@@ -53,6 +53,14 @@ curl -X POST http://127.0.0.1:3000/api/voice/converse \
   -d '{"transcript":"حالة الأدوات والبيئة؟","preferredLang":"ar"}'
 curl -X POST http://127.0.0.1:3000/api/voice/transcribe \
   -H 'Content-Type: application/json' -d '{"audioBase64":"...","mimeType":"audio/webm"}'
+
+# v3: رسم التبعيات، فحص التلوث، وسلامة السجل المشفّر
+curl -X POST http://127.0.0.1:3000/api/enterprise/graph \
+  -H 'Content-Type: application/json' \
+  -d '{"path":"E:\\code\\my-repo","targetFile":"src/index.ts"}'
+curl -X POST http://127.0.0.1:3000/api/security/taint-scan \
+  -H 'Content-Type: application/json' -d '{"path":"E:\\code\\my-repo"}'
+curl http://127.0.0.1:3000/api/security/ledger
 ```
 
 مراحل التدقيق والتطوير تُبثّ على `/api/events` تحت الموضوع `ingest` وتظهر مباشرة في تبويب أوامر الشركة.

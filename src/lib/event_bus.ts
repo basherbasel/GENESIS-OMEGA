@@ -7,7 +7,7 @@
 
 import { EventEmitter } from 'node:events';
 
-export type StudioEventTopic = 'state' | 'ready' | 'heartbeat' | 'job' | 'work_order' | 'ingest' | 'voice';
+export type StudioEventTopic = 'state' | 'ready' | 'heartbeat' | 'job' | 'work_order' | 'ingest' | 'voice' | 'ledger';
 
 export interface StudioEvent<T = unknown> {
   topic: StudioEventTopic;

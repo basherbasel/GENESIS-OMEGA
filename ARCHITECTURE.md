@@ -33,6 +33,7 @@ genesis-omega/
 │   ├── lib/                   وحدات المنطق (انظر القائمة أدناه).
 │   ├── lib/brains/            عقول محلية وفهرس مستودعات وترقيع جراحي ورسم تبعيات (v2/v3).
 │   ├── lib/enterprise/        الأقسام العشرة وآلة حالة أوامر العمل وصيانة المستودعات ومجلس المراجعة ومقياس الدقة (v2/v3).
+│   ├── lib/security/          حارس المسارات وفاحص التلوث متعدد اللغات والسجل المشفر متسلسل التجزئة.
 │   └── lib/voice/             توجيه نوايا ثنائي اللغة، حوار محلي، STT محلي، تطهير بيئة العمليات.
 ├── data/                      حالة التشغيل: omega_store.db (WAL) + مرآة omega_store.json + workspaces/exports/voice_cache.
 ├── backups/                   نسخ احتياطية موسومة بالطابع الزمني.
@@ -69,6 +70,8 @@ genesis-omega/
 | runtime_env.ts | قارئ متغيرات بيئة آمن للمتصفح والخادم معاً. |
 | sandbox_runner.ts | يشغّل عملية المشروع المولّد على منفذ حر ويتحكم في دورة حياتها. |
 | security.ts | فحص الأسرار والتراجع الذري وحارس المسارات وفاحص الأنماط الخطرة. |
+| security/taint_scanner.ts | تحليل تلوث ثابت عبر 8 لغات: مصادر إدخال → مخاطر CWE-78/89/22/94/79 مع إصلاح. |
+| security/audit_ledger.ts | سجل تدقيق append-only بسلسلة SHA-256 وكشف عبث/حذف/إعادة ترتيب. |
 | solution_catalog.ts | 24 نطاق حل emits حزمة كاملة قابلة للتحقق. |
 | toolchain_doctor.ts | يفحص توفر أدوات الأنظمة والبيئات لكل لغة. |
 | types.ts | العقود المشتركة: ProjectRecord وGovernorStats أنواع الواجهة. |
@@ -79,7 +82,7 @@ genesis-omega/
 | store_schema.ts | مخطط Zod يمنع تحميل متجر تالف قبل استخدام حقوله. |
 | verifier.ts | يشغّل اختبارات نظام التشغيل الفعلية ويمنع أرقاماً مُختلقة. |
 | watcher.ts | يراقب المجلدات ويقارن SHA-256 ويُطلق تدقيقاً عند التغيير. |
-| `i18n.ts` | قاموس عربي/إنجليزي من 469 مفتاحاً يغطي كل شلّ الواجهة والحوار الصوتي، مع حفظ اللغة محلياً. |
+| `i18n.ts` | قاموس عربي/إنجليزي من 502 مفتاحاً يغطي كل شلّ الواجهة والحوار الصوتي ولوحات v3، مع حفظ اللغة محلياً. |
 | brain_registry.ts | 4 ملفات عقول محلية ببارامترات حتمية وخريطة نماذج مثبّتة. |
 | repo_indexer.ts | فهرس رموز متعدد اللغات بلا تبعيات مع ميزانية رموز. |
 | surgical_patcher.ts | SEARCH/REPLACE آمن بفحص مسارات وتحقق وتراجع ذري. |
@@ -92,8 +95,8 @@ genesis-omega/
 | voice/voice_dialogue.ts | كشف لغة المتحدث، توجيه نوايا حتمي (أمر عمل/مستودع/إصلاح/لغة/دكتور/ملخص) وحوار محلي عبر `local_synthesis` بفشل مغلق. |
 | voice/offline_stt.ts | تفريغ صوتي محلي اختياري (Whisper/Vosk) بسقف بايتات وبيئة معقّمة و`STT_NOT_CONFIGURED`. |
 | voice/voice_process.ts | تطهير بيئة العمليات الفرعية وإدارة حمولة الصوت وامتداداته. |
-| `*.test.ts` | 30 ملف اختبار تغطي 134 حالة (آخر تشغيل: 134 ناجح، 0 فاشل). |
-| `playwright.config.ts` + `e2e/studio.spec.ts` | 11 اختبارات متصفح E2E منفصلة عن `npm test`. |
+| `*.test.ts` | 31 ملف اختبار تغطي 138 حالة (آخر تشغيل: 138 ناجح، 0 فاشل). |
+| `playwright.config.ts` + `e2e/studio.spec.ts` | 12 اختبارات متصفح E2E منفصلة عن `npm test`. |
 
 ## مكوّنات الواجهة
 
@@ -127,3 +130,4 @@ genesis-omega/
 9. الحوار الصوتي: `VoiceHud` → `POST /api/voice/converse` → `voice_dialogue.ts` يوجّه النية → `WorkOrderEngine` / `repo_ingest` / `healer` أو حوار عبر `local_synthesis` → `llama-bridge` → Piper WAV أو Web Speech، مع بث `voice` على SSE.
 10. التفريغ الصوتي: `POST /api/voice/transcribe` يستخدم Whisper/Vosk محلياً إن وُجد، وإلا `503 STT_NOT_CONFIGURED` — المتصفح يستخدم SpeechRecognition بدلاً منه.
 11. قبل الترقية: `dependency_graph` يحدّد المتأثرين ويمرّر سياقاً مركّزاً إلى `coder`/`healer`، ثم `peer_review_council` يراجع ويعالج، ثم `precision_verifier` يقيس الزمن/RSS والتكرار والحدود — أي فشل CRITICAL/HIGH يُغلق دون كتابة.
+12. فحص التلوث `taint_scanner` يعمل في مرحلة `SECURITY_AUDIT` لأوامر العمل وفي تدقيق المستودعات، وكل نتيجة/ترقية/إجراء صوتي يُسجَّل في `audit_ledger` بسلسلة تجزئة ويُبثّ على `ledger` over SSE.

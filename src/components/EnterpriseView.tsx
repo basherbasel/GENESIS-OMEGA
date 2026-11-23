@@ -55,6 +55,40 @@ interface IngestStageEvent {
   errorCode?: string;
 }
 
+interface LedgerVerification {
+  valid: boolean;
+  entries: number;
+  firstSeq: number | null;
+  lastSeq: number | null;
+  brokenSequenceAt: number | null;
+  brokenHashAt: number | null;
+  duplicateSeq: number | null;
+  detail: string;
+}
+
+interface GraphResult {
+  nodes: number;
+  edges: number;
+  cycles: string[][];
+  buildOrder: string[];
+  blastRadius: {
+    targetFile: string;
+    directDependents: string[];
+    transitiveDependents: string[];
+    dependencies: string[];
+  } | null;
+}
+
+interface TaintFinding {
+  id: string;
+  file: string;
+  line: number;
+  source: string;
+  sink: string;
+  cweId: string;
+  remediation: string;
+}
+
 const TERMINAL_INGEST_STAGES = new Set(['PROMOTED', 'FAILED_CLOSED', 'NO_CHANGES']);
 
 interface EnterpriseViewProps {
@@ -77,6 +111,11 @@ export const EnterpriseView: React.FC<EnterpriseViewProps> = ({ language }) => {
   const [ingestBusy, setIngestBusy] = useState(false);
   const [runs, setRuns] = useState<IngestRun[]>([]);
   const [stages, setStages] = useState<IngestStageEvent[]>([]);
+  const [graphTarget, setGraphTarget] = useState('');
+  const [graphResult, setGraphResult] = useState<GraphResult | null>(null);
+  const [taintFindings, setTaintFindings] = useState<TaintFinding[] | null>(null);
+  const [ledger, setLedger] = useState<LedgerVerification | null>(null);
+  const [v3Busy, setV3Busy] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -178,6 +217,69 @@ export const EnterpriseView: React.FC<EnterpriseViewProps> = ({ language }) => {
       setError(err instanceof Error ? err.message : 'ingest failed');
     } finally {
       setIngestBusy(false);
+    }
+  };
+
+  const analyzeGraph = async () => {
+    const pathValue = repoPath.trim();
+    if (pathValue.length < 2) {
+      setError(tr('ent.ingestPath'));
+      return;
+    }
+    setV3Busy(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/enterprise/graph', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: pathValue, targetFile: graphTarget.trim() || undefined }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(`${data.code ? `${data.code}: ` : ''}${data.error || 'graph failed'}`);
+      setGraphResult(data as GraphResult);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'graph failed');
+    } finally {
+      setV3Busy(false);
+    }
+  };
+
+  const scanTaint = async () => {
+    const pathValue = repoPath.trim();
+    if (pathValue.length < 2) {
+      setError(tr('ent.ingestPath'));
+      return;
+    }
+    setV3Busy(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/security/taint-scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: pathValue }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(`${data.code ? `${data.code}: ` : ''}${data.error || 'taint scan failed'}`);
+      setTaintFindings((data.findings || []) as TaintFinding[]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'taint scan failed');
+    } finally {
+      setV3Busy(false);
+    }
+  };
+
+  const verifyLedger = async () => {
+    setV3Busy(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/security/ledger');
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'ledger check failed');
+      setLedger(data.verification as LedgerVerification);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'ledger check failed');
+    } finally {
+      setV3Busy(false);
     }
   };
 
@@ -386,6 +488,87 @@ export const EnterpriseView: React.FC<EnterpriseViewProps> = ({ language }) => {
               </div>
             )}
           </div>
+        </div>
+      </section>
+
+      <section className="grid gap-4 lg:grid-cols-3">
+        <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-4 space-y-2" aria-label={tr('ent.graph.title')}>
+          <h2 className="text-sm font-medium text-slate-200">{tr('ent.graph.title')}</h2>
+          <p className="text-[11px] text-slate-500">{tr('ent.graph.hint')}</p>
+          <input
+            value={graphTarget}
+            onChange={(event) => setGraphTarget(event.target.value)}
+            placeholder={tr('ent.graph.target')}
+            className="w-full rounded border border-slate-700 bg-slate-900 px-2 py-1.5 text-xs text-slate-100"
+          />
+          <button
+            type="button"
+            disabled={v3Busy}
+            onClick={() => void analyzeGraph()}
+            className="rounded bg-cyan-500 px-3 py-1.5 text-xs font-semibold text-slate-950 disabled:opacity-50"
+          >
+            {tr('ent.graph.analyze')}
+          </button>
+          {graphResult ? (
+            <div className="space-y-1 text-[11px] text-slate-300" data-testid="enterprise-graph-result">
+              <div>{tr('ent.graph.nodes')}: {graphResult.nodes} · {tr('ent.graph.edges')}: {graphResult.edges}</div>
+              <div>{tr('ent.graph.cycles')}: {graphResult.cycles.length} · {tr('ent.graph.direct')}: {graphResult.blastRadius?.directDependents.length ?? 0} · {tr('ent.graph.transitive')}: {graphResult.blastRadius?.transitiveDependents.length ?? 0}</div>
+            </div>
+          ) : (
+            <p className="text-[11px] text-slate-500">{tr('ent.graph.noResult')}</p>
+          )}
+        </div>
+
+        <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-4 space-y-2" aria-label={tr('ent.taint.title')}>
+          <h2 className="text-sm font-medium text-slate-200">{tr('ent.taint.title')}</h2>
+          <p className="text-[11px] text-slate-500">{tr('ent.taint.hint')}</p>
+          <button
+            type="button"
+            disabled={v3Busy}
+            onClick={() => void scanTaint()}
+            className="rounded border border-cyan-700 px-3 py-1.5 text-xs text-cyan-200 disabled:opacity-50"
+          >
+            {tr('ent.taint.scan')}
+          </button>
+          <div className="max-h-40 space-y-1 overflow-y-auto" data-testid="enterprise-taint-findings">
+            {taintFindings === null ? (
+              <p className="text-[11px] text-slate-500">{tr('ent.taint.none')}</p>
+            ) : taintFindings.length === 0 ? (
+              <p className="text-[11px] text-emerald-400">{tr('ent.taint.none')}</p>
+            ) : (
+              taintFindings.slice(0, 12).map((finding) => (
+                <div key={finding.id} className="rounded border border-rose-900 bg-rose-950/20 px-2 py-1 text-[10px] text-rose-300">
+                  <span className="font-mono">{finding.cweId}</span> {finding.file}:{finding.line}
+                  <div className="text-slate-400">{tr('ent.taint.remediation')}: {finding.remediation}</div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-4 space-y-2" aria-label={tr('ent.ledger.title')}>
+          <h2 className="text-sm font-medium text-slate-200">{tr('ent.ledger.title')}</h2>
+          <button
+            type="button"
+            disabled={v3Busy}
+            onClick={() => void verifyLedger()}
+            className="rounded border border-emerald-700 px-3 py-1.5 text-xs text-emerald-300 disabled:opacity-50"
+          >
+            {tr('ent.ledger.verify')}
+          </button>
+          {ledger ? (
+            <div className="space-y-1 text-[11px] text-slate-300" data-testid="enterprise-ledger-result">
+              <div className={ledger.valid ? 'text-emerald-400' : 'text-rose-400'}>
+                {ledger.valid ? tr('ent.ledger.valid') : tr('ent.ledger.invalid')} · {tr('ent.ledger.entries')}: {ledger.entries}
+              </div>
+              <div>{tr('ent.ledger.seq')}: {ledger.firstSeq ?? '—'} → {ledger.lastSeq ?? '—'}</div>
+              <div>{tr('ent.ledger.detail')}: {ledger.detail}</div>
+              {ledger.brokenSequenceAt !== null && <div className="text-rose-400">{tr('ent.ledger.brokenSeq')} {ledger.brokenSequenceAt}</div>}
+              {ledger.brokenHashAt !== null && <div className="text-rose-400">{tr('ent.ledger.brokenHash')} {ledger.brokenHashAt}</div>}
+            </div>
+          ) : (
+            <p className="text-[11px] text-slate-500">{tr('ent.graph.noResult')}</p>
+          )}
         </div>
       </section>
     </main>

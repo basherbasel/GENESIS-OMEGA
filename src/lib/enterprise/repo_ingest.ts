@@ -41,6 +41,7 @@ import type { LocalTextSynthesisOutput } from '../local_synthesis';
 import type { PeerReviewResult } from './peer_review_council';
 import type { PrecisionReport } from './precision_verifier';
 import { computeUnifiedDiffs, isSafeRelativePath, sha256Hex } from '../security';
+import { scanTaintFlows, type TaintFinding } from '../security/taint_scanner';
 import type { DiffEntry, EcosystemKey, ExecutionVerifySummary, HealingReport, SecretFinding } from '../types';
 import { materializeWorkspaceFiles } from '../verifier';
 import { resolveSafeWatchPath } from '../watcher';
@@ -466,6 +467,7 @@ export interface RepoAuditReport {
   filesScanned: number;
   verification: ExecutionVerifySummary;
   security: { secrets: SecretFinding[]; staticIssues: string[] };
+  taint?: TaintFinding[];
 }
 
 /**
@@ -478,6 +480,7 @@ export async function auditIngestedRepo(
 ): Promise<RepoAuditReport> {
   const verification = await deps.verify(input.workspacePath, input.files, input.ecosystemKey);
   const security = deps.scan(input.files);
+  const taint = scanTaintFlows(input.files);
   return {
     at: new Date().toISOString(),
     workspacePath: input.workspacePath,
@@ -486,6 +489,7 @@ export async function auditIngestedRepo(
     filesScanned: Object.keys(input.files).length,
     verification,
     security,
+    taint,
   };
 }
 
@@ -1147,12 +1151,13 @@ export async function evolveAndHardenRepo(
       `exit=${verification.exitCode} tests=${verification.testsPassed}/${verification.testsExecuted}`,
     );
     let security = deps.scan(candidate);
-    emit('SECURITY_AUDIT', `secrets=${security.secrets.length} staticIssues=${security.staticIssues.length}`);
+    let taint = scanTaintFlows(candidate);
+    emit('SECURITY_AUDIT', `secrets=${security.secrets.length} staticIssues=${security.staticIssues.length} taint=${taint.length}`);
 
     // 6. Self-healing when tests fail or security findings remain.
     let healing: HealingReport | undefined;
     const needsHealing =
-      verification.exitCode !== 0 || security.secrets.length > 0 || security.staticIssues.length > 0;
+      verification.exitCode !== 0 || security.secrets.length > 0 || security.staticIssues.length > 0 || taint.length > 0;
     if (needsHealing && deps.heal) {
       emit(
         'SELF_HEALING',
@@ -1169,6 +1174,7 @@ export async function evolveAndHardenRepo(
         healing = healed.report;
         verification = await deps.verify(ingest.workspacePath, candidate, ingest.ecosystemKey);
         security = deps.scan(candidate);
+        taint = scanTaintFlows(candidate);
         emit(
           'OS_VERIFICATION',
           `after healing exit=${verification.exitCode} tests=${verification.testsPassed}/${verification.testsExecuted}`,
@@ -1224,6 +1230,7 @@ export async function evolveAndHardenRepo(
         candidate = review.files;
         verification = await deps.verify(ingest.workspacePath, candidate, ingest.ecosystemKey);
         security = deps.scan(candidate);
+        taint = scanTaintFlows(candidate);
         emit('SECURITY_AUDIT', `after peer remediation exit=${verification.exitCode} secrets=${security.secrets.length}`);
       }
       if (!review.passed) {
@@ -1288,6 +1295,11 @@ export async function evolveAndHardenRepo(
     }
     if (newSecrets > 0) reasons.push(`new secret findings: ${newSecrets}`);
     if (newStatic > 0) reasons.push(`new static issues: ${newStatic}`);
+    const newTaint = countAdded(
+      multisetKeys((baseline.taint || []).map((item) => `${item.file}|${item.cweId}|${item.line}`)),
+      taint.map((item) => `${item.file}|${item.cweId}|${item.line}`),
+    );
+    if (newTaint > 0) reasons.push(`new taint findings: ${newTaint}`);
     if (testRegression) {
       reasons.push(
         `test regression ${baseline.verification.testsPassed} -> ${verification.testsPassed} (exit ${baseline.verification.exitCode} -> ${verification.exitCode})`,
