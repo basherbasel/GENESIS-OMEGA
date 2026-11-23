@@ -230,7 +230,7 @@ npm run lint && npm test
 3. ~~**المرحلة 3ج** — طابور worker بمعرّف مهمة وحالة.~~ ✅ منجز.
 4. ~~**المرحلة 4أ** — لوحة قياسات من `/api/status` و`/api/projects`.~~ ✅ منجز (`DashboardView`).
 5. ~~**المرحلة 4ب (PDF)**~~ ✅ منجز عبر طباعة المتصفح. E2E ولغة ثانية مؤجلان بقرار موثّق.
-6. **ربط `llama-bridge` بخط الإنتاج** — بعد موافقة صريحة، لأنه يلمس `ai_pipeline.ts`.
+6. ~~**ربط `llama-bridge` بخط الإنتاج**~~ ✅ منجز عبر `local_synthesis.ts` واختيار في `server.ts` — **دون لمس `ai_pipeline.ts`**.
 
 **قاعدة:** لا تُبدأ خطوة قبل أن يمر `npm run check` ويُحدَّث `INVENTORY.md` والالتزام في نفس الجلسة. Docker و24 نطاقاً ونشر سحابي مؤجلة بقرار في `DECISIONS.md` و`BACKLOG.md`.
 
@@ -248,6 +248,7 @@ npm run lint && npm test
 | 3ج — الطابور | ✅ | `POST /api/jobs`، states مرئية، عامل تسلسلي واحد |
 | 4أ — اللوحة | ✅ | `DashboardView` بـ CSS خالص من `dashboard_metrics.ts` |
 | 4ب — PDF | ✅ | `@media print` + `window.print()` + رابط `?print=1` |
+| 5 — ربط الجسر المحلي | ✅ | `local_synthesis.ts`، `engine=ollama-local` حياً، `ai_pipeline.ts` لم يُلمس |
 | 4ج — E2E/لغة | ⬜ | مؤجل: Playwright غير مثبت، لغة ثانية لم تُطلب |
 
 ### 14.2 خريطة الملفات (102 ملف متتبع)
@@ -272,6 +273,7 @@ npm run lint && npm test
 | فقدان الحالة عند الاستعادة | مرآة JSON + مقارنة hash عند الإقلاع | اختبار `Restored JSON` |
 | تضخم الذاكرة في limiter | تقليم دوري كل 128 فحص | `rate_limit.test.ts` |
 | تداخل التوليد الثقيل | طابور أحادي العامل | `maxInFlight=1` |
+| توليد محلي بلا قفل | `local_synthesis.ts` يمر عبر `llama-bridge` لا عبر عميل مباشر | `engine=ollama-local` للمشروع #11 |
 
 ### 14.4 البوابات والأوامر
 

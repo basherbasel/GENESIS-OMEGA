@@ -50,6 +50,7 @@ genesis-omega/
 | healer.ts | دورة تشخيص→رقعة→تحقق حقيقي→قبول أو رفض. |
 | legacy.ts | يكتشف COBOL/Pascal/Fortran ويولّد هجرة باختبارات تطابق. |
 | local_models.ts | كتالوج 34 نموذجاً محلياً/مكمّماً مع توصية حسب الذاكرة. |
+| local_synthesis.ts | توليد محلي عبر الجسر المحمي بفشل مغلق، دون أي استدعاء سحابي. |
 | ollama_client.ts | عميل HTTP استنتاج محلي مع timeout وAbortSignal مدمجين. |
 | llama-bridge.ts | single-flight mutex ورموز أخطاء صريحة وفشل مغلق بلا fallback. |
 | offline_audio_player.ts | مشغّل صوت محلي للتجربة بدون إنترنت. |

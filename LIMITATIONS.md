@@ -28,7 +28,7 @@
 
 ## 4. حدود البنية الحالية
 
-- `llama-bridge.ts` يوفّر mutex وtimeout وfail-closed، لكن `ai_pipeline.ts` ما زال يستدعي `ollama_client.ts` مباشرة؛ الربط مؤجل.
+- `llama-bridge.ts` موصول بخط الإنتاج عبر `local_synthesis.ts` و`server.ts`، لكن `synthesizeProjectWithLocal` في `ai_pipeline.ts` ما زال يستدعي `ollama_client.ts` مباشرة لمسارات أخرى؛ لم يُعدَّل هذا الملف بقرار صريح.
 - `healer.ts` يعمل على مسار التحقق، لكنه لا يُطبّق بعد على مخرجات المسار المحلي الجديد.
 - عزل Windows يغطي **دورة حياة العملية** فقط: Job Object بـ `KILL_ON_JOB_CLOSE` يضمن قتل الأبناء عند الإيقاف، لكنه لا يفرض سياسة وصول للملفات أو الشبكة.
 - ربط عملية موجودة بالفعل بـ Job Object فشل بـ `ACCESS_DENIED (5)`؛ الحل المطبّق هو إطلاق العملية بـ `CREATE_BREAKAWAY_FROM_JOB | CREATE_SUSPENDED` ثم إسنادها واستئنافها، وليس الإسناد اللاحق.

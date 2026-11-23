@@ -62,6 +62,7 @@ import {
 import { formatSseFrame, studioEvents } from './src/lib/event_bus';
 import { studioJobs } from './src/lib/job_queue';
 import { RateLimiter } from './src/lib/rate_limit';
+import { synthesizeWithBridge } from './src/lib/local_synthesis';
 import {
   computeUnifiedDiffs,
   evaluateWithAtomicRollback,
@@ -344,18 +345,39 @@ async function runPipelineSynthesis(params: {
   const localFirst = process.env.OMEGA_LOCAL_FIRST === '1' && isLocalModelId(routingUsed.builder_alpha);
   const shouldSynthesize = params.useAi || explicitLocal || localFirst;
   if (shouldSynthesize && (!params.uploadedFiles || Object.keys(params.uploadedFiles).length === 0)) {
-    const aiOut = await synthesizeProject({
-      title: params.title,
-      prompt: params.prompt,
-      eco,
-      routing: routingUsed,
-      vault: params.vault,
-      governor,
-    });
-    if ((aiOut.usedGemini || aiOut.usedLocal) && Object.keys(aiOut.generatedFiles).length > 0) {
-      files = { ...files, ...aiOut.generatedFiles };
-      synthesisEngine = aiOut.engine === 'ollama' ? 'ollama-local' : 'gemini-ai';
-      aiSummaryNote = aiOut.architectureSummary ? ` (${aiOut.architectureSummary.slice(0, 120)})` : '';
+    const useBridge = isLocalModelId(routingUsed.builder_alpha);
+    if (useBridge) {
+      // Guarded offline path: single-flight mutex, timeout and fail-closed
+      // errors. No cloud fallback is attempted from this branch.
+      const localOut = await synthesizeWithBridge({
+        title: params.title,
+        prompt: params.prompt,
+        eco,
+        routing: routingUsed,
+        vault: params.vault,
+        governor,
+      });
+      if (localOut.usedLocal && Object.keys(localOut.generatedFiles).length > 0) {
+        files = { ...files, ...localOut.generatedFiles };
+        synthesisEngine = 'ollama-local';
+        aiSummaryNote = localOut.architectureSummary ? ` (${localOut.architectureSummary.slice(0, 120)})` : '';
+      } else {
+        console.warn(`[LocalSynthesis] ${localOut.errorCode || 'PROCESS_FAILED'}: ${localOut.error || 'no files'}`);
+      }
+    } else {
+      const aiOut = await synthesizeProject({
+        title: params.title,
+        prompt: params.prompt,
+        eco,
+        routing: routingUsed,
+        vault: params.vault,
+        governor,
+      });
+      if ((aiOut.usedGemini || aiOut.usedLocal) && Object.keys(aiOut.generatedFiles).length > 0) {
+        files = { ...files, ...aiOut.generatedFiles };
+        synthesisEngine = aiOut.engine === 'ollama' ? 'ollama-local' : 'gemini-ai';
+        aiSummaryNote = aiOut.architectureSummary ? ` (${aiOut.architectureSummary.slice(0, 120)})` : '';
+      }
     }
   }
 

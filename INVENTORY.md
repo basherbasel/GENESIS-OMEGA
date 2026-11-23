@@ -5,9 +5,9 @@
 ## طريقة الجرد
 
 ```
-git ls-files | Measure-Object -Line          → 102 ملفاً متتبعاً (بعد هذا الالتزام)
-Get-ChildItem src/lib/*.test.ts              → 22 ملف اختبار
-npm test                                     → 95 pass / 0 fail / 0 skipped
+git ls-files | Measure-Object -Line          → 104 ملفاً متتبعاً (بعد هذا الالتزام)
+Get-ChildItem src/lib/*.test.ts              → 23 ملف اختبار
+npm test                                     → 98 pass / 0 fail / 0 skipped
 npm run check                                → critical 9/9 · exit 0
 ```
 
@@ -16,12 +16,12 @@ npm run check                                → critical 9/9 · exit 0
 | المجلد | عدد الملفات | المحتوى |
 |---|---|---|
 | `(root)` | 25 | `server.ts`، إعدادات الحزمة، 15 ملف توثيق (منها `INVENTORY.md`)، `.gitignore`، `.env.example`، `models.config.json`، `package-lock.json`. |
-| `src` | 69 | `App.tsx`، `main.tsx`، `index.css`، 10 مكوّنات، وحدات `lib`، 22 ملف اختبار (ضمن الـ 69). |
+| `src` | 71 | `App.tsx`، `main.tsx`، `index.css`، 10 مكوّنات، وحدات `lib`، 23 ملف اختبار (ضمن الـ 71). |
 | `scripts` | 5 | `backup.ts`, `restore.ts`, `doctor.ts`, `check-secrets.ts`, `windows_job_sandbox.ps1`. |
 | `.github` | 1 | `workflows/ci.yml`. |
 | `public` | 2 | أصول المنصة الأصلية. |
 
-## سجل الاختبارات (22 ملفاً / 95 اختباراً)
+## سجل الاختبارات (23 ملفاً / 98 اختباراً)
 
 | الملف | عدد الحالات | ما يغطيه |
 |---|---|---|
@@ -37,6 +37,7 @@ npm run check                                → critical 9/9 · exit 0
 | `integrity.test.ts` | 5 | SHA-256 وحارس المسارات وتسريب المتغيرات. |
 | `llama-bridge.test.ts` | 4 | mutex، timeout 100ms، MODEL_NOT_FOUND، ABORTED. |
 | `local_models.test.ts` | 6 | كتالوج 34 نموذجاً، توجيه محلي، عميل Ollama، معرّفات Gemini. |
+| `local_synthesis.test.ts` | 3 | توليد عبر الجسر، رفض المسارات، فشل مغلق بلا سحابة. |
 | `omega.test.ts` | 16 | كتالوج 18 بيئة، SBOM، متحقق OS، مراقب، تصدير، sandbox حي. |
 | `os_sandbox.test.ts` | 6 | كشف، فشل مغلق،Job Object، قتل الأحفاد، التقاط stdout. |
 | `piper_tts.test.ts` | 6 | تخزين صوت SHA-256، prosody، اكتشاف النموذج، مسارات آمنة. |
