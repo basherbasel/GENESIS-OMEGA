@@ -11,13 +11,21 @@ no secrets are written anywhere.
 #>
 [CmdletBinding()]
 param(
-  [switch]$PullModels
+  [switch]$PullModels,
+  [switch]$CreateBrains
 )
 
-# Accept the POSIX-style flag too, for copy/paste parity with bootstrap.sh.
+# Accept POSIX-style flags too, for copy/paste parity with bootstrap.sh.
 if ($args -contains '--pull-models') { $PullModels = $true }
+if ($args -contains '--create-brains') { $CreateBrains = $true }
 
 $ErrorActionPreference = 'Stop'
+# Process-local Ollama tuning; no system PATH is modified.
+$env:OLLAMA_FLASH_ATTENTION = '1'
+$env:OLLAMA_KV_CACHE_TYPE = 'q8_0'
+$env:OLLAMA_KEEP_ALIVE = '15m'
+$env:OLLAMA_NUM_PARALLEL = '1'
+$env:OLLAMA_MAX_LOADED_MODELS = '1'
 $OllamaHost = $env:OLLAMA_HOST
 if ([string]::IsNullOrWhiteSpace($OllamaHost)) { $OllamaHost = 'http://127.0.0.1:11434' }
 
@@ -65,12 +73,27 @@ if ($PullModels) {
   Write-Ok 'Skipped (pass -PullModels or --pull-models to pull qwen2.5-coder:1.5b and 3b explicitly).'
 }
 
+Write-Step '5b/6 Optional dedicated omega-* brains'
+if ($CreateBrains) {
+  foreach ($brain in @('architect', 'coder', 'healer', 'auditor')) {
+    $template = "models/brains/Modelfile.$brain"
+    if (-not (Test-Path $template)) { Write-Warn "missing $template"; continue }
+    Write-Host "ollama create omega-$brain -f $template"
+    & ollama create "omega-$brain" -f $template
+    if ($LASTEXITCODE -ne 0) { Write-Warn "Could not create omega-$brain (Ollama must be running)." }
+  }
+} else {
+  Write-Ok 'Skipped (pass -CreateBrains or --create-brains to build omega-architect/coder/healer/auditor locally).'
+}
+
 Write-Step '6/6 Full verification gate'
 & npm run check
 if ($LASTEXITCODE -ne 0) { Fail 'npm run check failed; fix the reported gates before starting the studio.' }
 Write-Ok 'SECRETS_OK and doctor critical gates passed.'
 
 Write-Host "`nBOOTSTRAP_OK" -ForegroundColor Green
+Write-Host 'Ollama tuning (process-local): FLASH_ATTENTION=1 KV_CACHE_TYPE=q8_0 KEEP_ALIVE=15m NUM_PARALLEL=1 MAX_LOADED_MODELS=1' -ForegroundColor White
+Write-Host 'Bilingual Piper voices: place ar_*.onnx and en_*.onnx (+ .onnx.json) in models/piper/' -ForegroundColor White
 Write-Host 'Start the studio (local-first, no cloud key required):' -ForegroundColor White
 Write-Host '  OMEGA_LOCAL_FIRST=1 npm run dev' -ForegroundColor White
 Write-Host 'On Windows PowerShell, set the env var first:' -ForegroundColor White

@@ -10,12 +10,21 @@ playwright-report/
 # Runtime state, generated workspaces and local model binaries
 .aistudio/
 data/
-models/
 voices/
 piper_models/
+
+# Heavy binaries stay untracked; tracked Modelfile templates are the exception.
+/models/*
+!/models/brains/
+/models/brains/*
+!/models/brains/Modelfile.*
+!/models/piper/
+/models/**/*.gguf
+/models/**/*.onnx
 
 .env
 .env*
 *.gguf
+*.onnx
 backups/
 !.env.example

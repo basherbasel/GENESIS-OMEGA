@@ -7,14 +7,22 @@
 set -eu
 
 PULL_MODELS=0
+CREATE_BRAINS=0
 for arg in "$@"; do
   case "$arg" in
     --pull-models) PULL_MODELS=1 ;;
+    --create-brains) CREATE_BRAINS=1 ;;
     *) echo "Unknown argument: $arg" >&2; exit 2 ;;
   esac
 done
 
 OLLAMA_HOST="${OLLAMA_HOST:-http://127.0.0.1:11434}"
+# Process-local Ollama performance tuning; no system PATH is modified.
+export OLLAMA_FLASH_ATTENTION=1
+export OLLAMA_KV_CACHE_TYPE=q8_0
+export OLLAMA_KEEP_ALIVE=15m
+export OLLAMA_NUM_PARALLEL=1
+export OLLAMA_MAX_LOADED_MODELS=1
 
 step() { printf '\n==> %s\n' "$1"; }
 ok() { printf '[OK] %s\n' "$1"; }
@@ -62,11 +70,25 @@ else
   ok 'Skipped (pass --pull-models to pull qwen2.5-coder:1.5b and 3b explicitly).'
 fi
 
+step '5b/6 Optional dedicated omega-* brains'
+if [ "$CREATE_BRAINS" -eq 1 ]; then
+  for brain in architect coder healer auditor; do
+    template="models/brains/Modelfile.$brain"
+    if [ ! -f "$template" ]; then warn "missing $template"; continue; fi
+    printf 'ollama create omega-%s -f %s\n' "$brain" "$template"
+    ollama create "omega-$brain" -f "$template" || warn "Could not create omega-$brain (Ollama must be running)."
+  done
+else
+  ok 'Skipped (pass --create-brains to build omega-architect/coder/healer/auditor locally).'
+fi
+
 step '6/6 Full verification gate'
 npm run check || fail 'npm run check failed; fix the reported gates before starting the studio.'
 ok 'SECRETS_OK and doctor critical gates passed.'
 
 printf '\nBOOTSTRAP_OK\n'
+printf 'Ollama tuning (process-local): FLASH_ATTENTION=1 KV_CACHE_TYPE=q8_0 KEEP_ALIVE=15m NUM_PARALLEL=1 MAX_LOADED_MODELS=1\n'
+printf 'Bilingual Piper voices: place ar_*.onnx and en_*.onnx (+ .onnx.json) in models/piper/\n'
 printf 'Start the studio (local-first, no cloud key required):\n'
 printf '  OMEGA_LOCAL_FIRST=1 npm run dev\n'
 printf 'Open http://127.0.0.1:3000\n'

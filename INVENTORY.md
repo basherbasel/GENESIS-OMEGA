@@ -5,10 +5,10 @@
 ## طريقة الجرد
 
 ```
-git ls-files | Measure-Object -Line          → 136 ملفاً متتبعاً (بعد هذا الالتزام)
-Get-ChildItem src/lib/**/*.test.ts           → 31 ملف اختبار
-npm test                                     → 138 pass / 0 fail / 0 skipped
-npm run test:e2e                             → 12 pass / 0 fail (Playwright chromium)
+git ls-files | Measure-Object -Line          → 144 ملفاً متتبعاً (بعد هذا الالتزام)
+Get-ChildItem src/lib/**/*.test.ts           → 32 ملف اختبار
+npm test                                     → 146 pass / 0 fail / 0 skipped
+npm run test:e2e                             → 13 pass / 0 fail (Playwright chromium)
 npm run check                                → critical 9/9 · exit 0
 ./scripts/bootstrap.sh --pull-models         → تهيئة لينكس/ماك (سحب النماذج اختياري وصريح)
 ```
@@ -18,20 +18,21 @@ npm run check                                → critical 9/9 · exit 0
 | المجلد | عدد الملفات | المحتوى |
 |---|---|---|
 | `(root)` | 27 | `server.ts`، إعدادات الحزمة، 17 ملف توثيق (منها `INVENTORY.md`)، `LICENSE`، `CONTRIBUTING.md`، `.gitignore`، `.env.example`، `models.config.json`، `package-lock.json`. |
-| `src` | 96 | `App.tsx`، `main.tsx`، `index.css`، 12 مكوّنات، وحدات `lib` + `lib/brains` (5) + `lib/enterprise` (8) + `lib/security` (3) + `lib/voice` (4)، 31 ملف اختبار (ضمن الـ 96). |
+| `src` | 104 | `App.tsx`، `main.tsx`، `index.css`، 12 مكوّنات، وحدات `lib` + `lib/brains` (6) + `lib/enterprise` (8) + `lib/runtime` (3) + `lib/security` (3) + `lib/voice` (4)، 32 ملف اختبار (ضمن الـ 104). |
 | `scripts` | 8 | `backup.ts`, `restore.ts`, `doctor.ts`, `check-secrets.ts`, `windows_job_sandbox.ps1`, `bootstrap.ps1`, `bootstrap.sh`, `vosk_transcribe.mjs`. |
+| `models` | 4 | `models/brains/Modelfile.architect|coder|healer|auditor` — قوالب Ollama متتبعة؛ الأوزان الثنائية مستبعدة. |
 | `.github` | 1 | `workflows/ci.yml`. |
-| `e2e` | 1 | `studio.spec.ts` — 12 اختبار متصفح حقيقية عبر Playwright (منها لوحات v3 والحوار الصوتي). |
+| `e2e` | 1 | `studio.spec.ts` — 13 اختبار متصفح حقيقية عبر Playwright (منها شريط قياسات v4). |
 | `(root)` | — | `playwright.config.ts` لإعداد المتصفح والخادم. |
 | `public` | 2 | أصول المنصة الأصلية. |
 
-## سجل الاختبارات (31 ملفاً / 138 اختباراً)
+## سجل الاختبارات (32 ملفاً / 146 اختباراً)
 
 | الملف | عدد الحالات | ما يغطيه |
 |---|---|---|
 | `auth.test.ts` | 4 | جلسة HttpOnly، مقارنة ثابتة، خنق الدخول. |
 | `binding_guard.test.ts` | 3 | رفض `0.0.0.0` بلا مفتاح بـ `INSECURE_BINDING`. |
-| `brains/brains.test.ts` | 4 | ملفات العقول الأربعة، فهرسة 5 لغات، ترقيع ذري وتراجع، حظر سحابة. |
+| `brains/brains.test.ts` | 5 | أربعة عقول حتمية، حل tags المخصصة `omega-*` عند التثبيت والرجوع إلى qwen، فهرسة لغات، ترقيع ذري، حظر سحابة. |
 | `brains/dependency_graph.test.ts` | 4 | حل الاستيرادات عبر اللغات، كشف الدورات، ترتيب طوبولوجي، نطاق الانفجار وتقطيع محدود بالرموز. |
 | `dashboard_metrics.test.ts` | 3 | تجميع آمن للحالة الفارغة، درجات واختبارات، قياسات وإصلاح حقيقي. |
 | `doctor_ci.test.ts` | 2 | `doctor --ci` يفرض البوابات المحمولة ويُعلن المتخطى. |
@@ -44,7 +45,7 @@ npm run check                                → critical 9/9 · exit 0
 | `healer.test.ts` | 5 | تشخيص ورقع وتحقق ورفض تحسين غير مُقاس. |
 | `job_queue.test.ts` | 3 | تسلسل المهام، فشل معزول، أحداث الحالة. |
 | `integrity.test.ts` | 5 | SHA-256 وحارس المسارات وتسريب المتغيرات. |
-| `i18n.test.ts` | 3 | اكتمال الترجمات (502 مفتاحاً عربياً/إنجليزياً)، التبديل والتنسيق، رفض لغة غير معروفة. |
+| `i18n.test.ts` | 3 | اكتمال الترجمات (512 مفتاحاً عربياً/إنجليزياً)، التبديل والتنسيق، رفض لغة غير معروفة. |
 | `llama-bridge.test.ts` | 4 | mutex، timeout 100ms، MODEL_NOT_FOUND، ABORTED. |
 | `local_models.test.ts` | 6 | كتالوج 34 نموذجاً، توجيه محلي، عميل Ollama، معرّفات Gemini. |
 | `local_synthesis.test.ts` | 3 | توليد عبر الجسر، رفض المسارات، فشل مغلق بلا سحابة. |
@@ -59,14 +60,15 @@ npm run check                                → critical 9/9 · exit 0
 | `store_schema.test.ts` | 2 | قبول متجر صالح ورفض تالف بمخطط Zod. |
 | `watcher.test.ts` | 2 | رفض المسارات النظامية، كشف تغيير SHA-256. |
 | `voice/voice_dialogue.test.ts` | 11 | كشف اللغة بالـ Unicode، توجيه الأوامر ثنائي اللغة، تنفيذ أو فشل مغلق، الحوار عبر الجسر، نماذج Piper، STT، ونوايا v3 (رسم/سجل/تلوث). |
+| `runtime/v4_runtime.test.ts` | 7 | حل العقول المخصصة، كشف هلوسة الاستيراد/الرموز، محرك JSON الصارم، ذاكرة SHA-256 مع إبطال ببايت واحد، ضاغط السياق، كاسر الركود، قتل شجرة العمليات وتنظيف المساحات. |
 | `security/security_v3.test.ts` | 3 | تتبّع تلوث عبر 8 لغات بأكواد CWE، مرور الكود المُطهَّر، كشف العبث بسجل التجزئة المتسلسل. |
 
 ## أوامر التحقق الدائمة
 
 ```
 npm run lint         → tsc --noEmit
-npm test             → 138/138
-npm run test:e2e     → 12/12 (Playwright)
+npm test             → 146/146
+npm run test:e2e     → 13/13 (Playwright)
 npm run check:secrets→ SECRETS_OK findings=0
 npm run doctor       → critical 9/9
 npm run doctor -- --ci → critical 4/4 · 5 skipped (مُعلن)
@@ -81,6 +83,8 @@ POST /api/voice/transcribe      → STT محلي أو 503 STT_NOT_CONFIGURED
 POST /api/enterprise/graph      → cycles / buildOrder / blastRadius
 POST /api/security/taint-scan   → CWE findings + ledger entry
 GET  /api/security/ledger       → entries + verifyLedgerIntegrity()
+GET  /api/runtime/metrics        → cache hit rate / savedMs / blocked / stagnation / brains / workspaces
+scripts/bootstrap.sh --create-brains  → ollama create omega-{architect,coder,healer,auditor}
 ```
 
 ## آخر الأدلة المسجلة

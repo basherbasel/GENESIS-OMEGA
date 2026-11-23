@@ -87,7 +87,9 @@ export const LOCAL_CODING_MODELS: LocalCodingModel[] = [
 const LOCAL_IDS = new Set(LOCAL_CODING_MODELS.map((m) => m.id));
 
 export function isLocalModelId(id: string | undefined | null): boolean {
-  return Boolean(id && LOCAL_IDS.has(id));
+  if (!id) return false;
+  if (/^omega-(?:architect|coder|healer|auditor)$/.test(id)) return true;
+  return LOCAL_IDS.has(id);
 }
 
 export function findLocalModel(id: string | undefined | null): LocalCodingModel | undefined {

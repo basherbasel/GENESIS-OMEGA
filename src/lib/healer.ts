@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { isSafeRelativePath, scanSecretsAndSecurity, validateRedTeamScript } from './security';
+import { HealCycleBreaker } from './runtime/resilience_guard';
 import type {
   EcosystemKey,
   ExecutionVerifySummary,
@@ -46,6 +47,8 @@ export interface HealProjectParams {
   baselineVerification: ExecutionVerifySummary;
   workspaceRoot: string;
   maxIterations?: number;
+  /** v4 breaker: halts when the exact same error signature repeats. */
+  breaker?: HealCycleBreaker;
   /** Real OS verification callback. Must write into its own isolated directory. */
   verify: (files: Record<string, string>, workspaceDir: string) => Promise<ExecutionVerifySummary>;
 }
@@ -502,6 +505,16 @@ export async function healProject(params: HealProjectParams): Promise<HealingOut
       status = 'stable';
       break;
     }
+    if (params.breaker) {
+      const cycle = params.breaker.observe(
+        verification.outputSnippet,
+        issues.map((issue) => issue.file || issue.symbol || issue.kind),
+      );
+      if (cycle.halt) {
+        status = 'stagnant';
+        break;
+      }
+    }
 
     const candidates = buildRepairCandidates(files, issues).slice(0, MAX_PATCHES_PER_ITERATION);
     if (candidates.length === 0) {
@@ -578,9 +591,11 @@ export async function healProject(params: HealProjectParams): Promise<HealingOut
   const finishedAt = new Date().toISOString();
   const gained = score - initialScore;
   const summary =
-    attempts.length === 0
-      ? 'لم يجد وكيل الإصلاح أي ترقيع قابل للتحقق؛ لم يتم تعديل أي ملف.'
-      : `تم اعتماد ${attempts.length} ترقيعاً بعد تحقق فعلي؛ تحسّن الدرجة بمقدار ${gained >= 0 ? '+' : ''}${gained} نقطة (${initialScore} → ${score}).`;
+    status === 'stagnant'
+      ? `Detected a repeated failure signature; halted after ${attempts.length} accepted patch(es) to avoid redundant work.`
+      : attempts.length === 0
+        ? 'لم يجد وكيل الإصلاح أي ترقيع قابل للتحقق؛ لم يتم تعديل أي ملف.'
+        : `تم اعتماد ${attempts.length} ترقيعاً بعد تحقق فعلي؛ تحسّن الدرجة بمقدار ${gained >= 0 ? '+' : ''}${gained} نقطة (${initialScore} → ${score}).`;
 
   return {
     report: {

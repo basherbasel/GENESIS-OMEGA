@@ -89,6 +89,15 @@ interface TaintFinding {
   remediation: string;
 }
 
+interface RuntimeMetrics {
+  at: string;
+  cache: { hits: number; misses: number; savedMs: number; entries: number; hitRate: number };
+  grounding: { blockedHallucinations: number };
+  healing: { stagnationBreaks: number };
+  brains: { dedicated: Record<string, boolean>; installedCount: number; allDedicatedReady: boolean };
+  workspaces: { activeJobs: number; cleaned: number; lastSweepAt: string | null; detail: string };
+}
+
 const TERMINAL_INGEST_STAGES = new Set(['PROMOTED', 'FAILED_CLOSED', 'NO_CHANGES']);
 
 interface EnterpriseViewProps {
@@ -116,17 +125,20 @@ export const EnterpriseView: React.FC<EnterpriseViewProps> = ({ language }) => {
   const [taintFindings, setTaintFindings] = useState<TaintFinding[] | null>(null);
   const [ledger, setLedger] = useState<LedgerVerification | null>(null);
   const [v3Busy, setV3Busy] = useState(false);
+  const [metrics, setMetrics] = useState<RuntimeMetrics | null>(null);
 
   const refresh = useCallback(async () => {
     try {
-      const [depRes, orderRes, runRes] = await Promise.all([
+      const [depRes, orderRes, runRes, metricsRes] = await Promise.all([
         fetch('/api/enterprise/departments'),
         fetch('/api/enterprise/work-orders'),
         fetch('/api/enterprise/ingest/runs'),
+        fetch('/api/runtime/metrics'),
       ]);
       if (depRes.ok) setDepartments(((await depRes.json()) as { departments: Department[] }).departments);
       if (orderRes.ok) setOrders(((await orderRes.json()) as { workOrders: WorkOrder[] }).workOrders);
       if (runRes.ok) setRuns(((await runRes.json()) as { runs: IngestRun[] }).runs);
+      if (metricsRes.ok) setMetrics((await metricsRes.json()) as RuntimeMetrics);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'request failed');
@@ -294,6 +306,26 @@ export const EnterpriseView: React.FC<EnterpriseViewProps> = ({ language }) => {
       </header>
 
       {error && <p className="rounded border border-rose-700 bg-rose-950/40 px-3 py-2 text-xs text-rose-300">{error}</p>}
+
+      <section
+        aria-label={tr('v4.strip.title')}
+        data-testid="enterprise-runtime-strip"
+        className="rounded-lg border border-cyan-900 bg-cyan-950/20 px-3 py-2"
+      >
+        <h2 className="mb-1 text-xs font-semibold text-cyan-300">{tr('v4.strip.title')}</h2>
+        {metrics ? (
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-300">
+            <span>{tr('v4.strip.cache')}: {Math.round(metrics.cache.hitRate * 100)}%</span>
+            <span>{tr('v4.strip.saved')}: {metrics.cache.savedMs} ms</span>
+            <span>{tr('v4.strip.blocked')}: {metrics.grounding.blockedHallucinations}</span>
+            <span>{tr('v4.strip.stagnation')}: {metrics.healing.stagnationBreaks}</span>
+            <span>{tr('v4.strip.brains')}: {metrics.brains.allDedicatedReady ? tr('v4.strip.ready') : tr('v4.strip.partial')} ({metrics.brains.installedCount})</span>
+            <span>{tr('v4.strip.workspaces')}: {metrics.workspaces.cleaned}</span>
+          </div>
+        ) : (
+          <p className="text-[11px] text-slate-500">{tr('v4.strip.none')}</p>
+        )}
+      </section>
 
       <section className="grid gap-4 lg:grid-cols-2">
         <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-4">

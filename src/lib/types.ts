@@ -253,7 +253,7 @@ export interface HealingReport {
   projectId: number;
   startedAt: string;
   finishedAt: string;
-  status: 'improved' | 'stable' | 'exhausted';
+  status: 'improved' | 'stable' | 'exhausted' | 'stagnant';
   initialScore: number;
   finalScore: number;
   initialVerification: ExecutionVerifySummary;

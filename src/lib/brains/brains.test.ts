@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import {
   BRAIN_PROFILES,
   BRAIN_ROLES,
+  DEDICATED_BRAIN_TAGS,
   buildBrainSystemPrompt,
   brainInferenceOptions,
   isBrainRole,
@@ -40,6 +41,14 @@ test('four deterministic local brain profiles resolve only installed catalog mod
   assert.equal(resolveBrainModel('coder', installed), 'qwen2.5-coder:1.5b');
   const none = resolveBrainModel('architect', new Set(['gemini-4-hydrogen']));
   assert.match(none, /^qwen/);
+});
+
+test('v4 dedicated omega-* tags win when installed and fall back to qwen tags', () => {
+  for (const role of BRAIN_ROLES) {
+    assert.equal(resolveBrainModel(role, new Set([DEDICATED_BRAIN_TAGS[role]])), DEDICATED_BRAIN_TAGS[role]);
+    assert.equal(BRAIN_PROFILES[role].preferredModelIds[0], DEDICATED_BRAIN_TAGS[role]);
+  }
+  assert.match(resolveBrainModel('architect', new Set(['gemini-4-hydrogen'])), /^qwen2\.5-coder:/);
 });
 
 test('repo indexer extracts real symbols across five languages with a bounded prompt', () => {

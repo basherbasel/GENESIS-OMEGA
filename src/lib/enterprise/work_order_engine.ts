@@ -11,7 +11,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import type { BrainRole } from '../brains/brain_registry';
+import { brainInferenceOptions, buildBrainSystemPrompt, resolveBrainModel, type BrainRole } from '../brains/brain_registry';
+import { verifyImportsAndSymbols, type GroundingResult } from '../brains/anti_hallucination';
+import { runFastFailSyntaxGate } from '../runtime/fast_cache';
 import type { LocalSynthesisOutput } from '../local_synthesis';
 import { isSafeRelativePath } from '../security';
 import { computeHealingScore } from '../healer';
@@ -69,6 +71,7 @@ export interface WorkOrder {
   healing?: HealingReport;
   peerReview?: PeerReviewResult;
   precision?: PrecisionReport;
+  grounding?: GroundingResult;
   auditLog: WorkOrderLog[];
   createdAt: string;
   updatedAt: string;
@@ -187,6 +190,27 @@ export class WorkOrderEngine {
       if (!blueprint) return order;
       const implemented = await this.implement(order, blueprint);
       if (!implemented) return order;
+
+      const grounding = verifyImportsAndSymbols({
+        workspaceDir: this.workspaceDir(order.id),
+        generatedFiles: order.files,
+      });
+      order.grounding = grounding;
+      this.persist();
+      if (grounding.blocked) {
+        const first = grounding.findings[0];
+        this.fail(order, first.code, 'IMPLEMENTATION', `${first.file}:${first.line} — ${first.detail}`);
+        return order;
+      }
+
+      const syntaxGate = runFastFailSyntaxGate(order.files);
+      if (!syntaxGate.ok) {
+        this.fail(order, 'SYNTAX_GATE_FAILED', 'IMPLEMENTATION', syntaxGate.failures
+          .slice(0, 4)
+          .map((item) => `${item.file}: ${item.message}`)
+          .join(' | '));
+        return order;
+      }
 
       let verification = await this.deps.verify(this.workspaceDir(order.id), order.files, order.ecosystemKey);
       this.transition(order, 'OS_VERIFICATION', `exit=${verification.exitCode} tests=${verification.testsExecuted}/${verification.testsPassed}`);

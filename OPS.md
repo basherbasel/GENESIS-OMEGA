@@ -6,7 +6,7 @@
 
 | الركن | الملف المرجعي | ما يضمنه |
 |---|---|---|
-| جرد الملفات والاختبارات | `INVENTORY.md` | 136 ملفاً، 31 ملف اختبار، 138 حالة — بالأوامر لا بالتقدير |
+| جرد الملفات والاختبارات | `INVENTORY.md` | 144 ملفاً، 32 ملف اختبار، 146 حالة — بالأوامر لا بالتقدير |
 | مخزن الحالة | `data/omega_store.db` (WAL) + مرآة `omega_store.json` | كتابة ذرية، وهجرة تلقائية من المرآة عند الاستعادة |
 | البث المباشر | `GET /api/events` (SSE) | `event: ready` و`event: state` و`event: job`، نبضة كل 15 ثانية |
 | المهام الخلفية | `POST /api/jobs` + `GET /api/jobs/:id` | يُعيد `jobId` فوراً؛ الحالة `queued/running/done/failed` وتُدفع عبر SSE |
@@ -24,10 +24,10 @@
 ```
 npm run dev            تشغيل الاستوديو على 127.0.0.1:3000
 npm run backup         نسخ حالة التشغيل
-npm run check          lint + 138 اختبار + فحص أسرار + doctor
+npm run check          lint + 146 اختبار + فحص أسرار + doctor
 npm run doctor         فحص جاهزية مفصّل بجدول [✓/✗/—]
 npm run doctor -- --ci فحص CI: البوابات المحمولة تُنفَّذ، والبوابات المضيفة تُعلَن كمتخطاة لا كنجاح صامت
-npm run test:e2e    12 اختبارات متصفح حقيقية (Playwright chromium)، منفصلة عن npm test
+npm run test:e2e    13 اختبارات متصفح حقيقية (Playwright chromium)، منفصلة عن npm test
 npm run check:secrets  فحص الملفات المتتبعة لأنماط البيانات السرية
 scripts/bootstrap.ps1 [-PullModels]   تهيئة Windows (Node≥20 + Ollama + install + doctor + check)
 scripts/bootstrap.sh [--pull-models]  تهيئة Linux/macOS (نفس البوابات)
@@ -61,6 +61,7 @@ curl -X POST http://127.0.0.1:3000/api/enterprise/graph \
 curl -X POST http://127.0.0.1:3000/api/security/taint-scan \
   -H 'Content-Type: application/json' -d '{"path":"E:\\code\\my-repo"}'
 curl http://127.0.0.1:3000/api/security/ledger
+curl http://127.0.0.1:3000/api/runtime/metrics
 ```
 
 مراحل التدقيق والتطوير تُبثّ على `/api/events` تحت الموضوع `ingest` وتظهر مباشرة في تبويب أوامر الشركة.
@@ -71,15 +72,17 @@ curl http://127.0.0.1:3000/api/security/ledger
 # Windows (PowerShell 5.1/7+)
 .\\scripts\\bootstrap.ps1              # لا يسحب نماذج
 .\\scripts\\bootstrap.ps1 -PullModels  # يسحب qwen2.5-coder:1.5b و3b صراحةً
+.\\scripts\\bootstrap.ps1 -CreateBrains # ينشئ omega-* من Modelfile.* صراحةً
 ```
 
 ```bash
 # Linux / macOS
 sh scripts/bootstrap.sh
 sh scripts/bootstrap.sh --pull-models
+sh scripts/bootstrap.sh --create-brains
 ```
 
-السكربتات تتحقق من Node ≥ 20 ومن اتصال Ollama على `OLLAMA_HOST` (الافتراضي `http://127.0.0.1:11434`)، تنفّذ `npm install` و`npm run doctor` و`npm run check`، ثم تطبع `OMEGA_LOCAL_FIRST=1 npm run dev`. لا تغيّر PATH ولا تحتوي أسراراً.
+السكربتات تتحقق من Node ≥ 20 ومن اتصال Ollama على `OLLAMA_HOST` (الافتراضي `http://127.0.0.1:11434`)، تنفّذ `npm install` و`npm run doctor` و`npm run check`، ثم تطبع `OMEGA_LOCAL_FIRST=1 npm run dev`. لا تغيّر PATH ولا تحتوي أسراراً. v4 يضبط تحسينات Ollama داخل العملية (`OLLAMA_FLASH_ATTENTION=1`, `OLLAMA_KV_CACHE_TYPE=q8_0`, `OLLAMA_KEEP_ALIVE=15m`, `OLLAMA_NUM_PARALLEL=1`, `OLLAMA_MAX_LOADED_MODELS=1`) ويطبع إرشادات وضع نماذج Piper في `models/piper/`.
 
 ## روتين يومي (قبل 시작 العمل)
 

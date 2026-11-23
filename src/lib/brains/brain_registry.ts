@@ -10,6 +10,14 @@ import { isLocalModelId } from '../local_models';
 
 export type BrainRole = 'architect' | 'coder' | 'healer' | 'auditor';
 
+/** Dedicated Ollama tags created from models/brains/Modelfile.* (v4). */
+export const DEDICATED_BRAIN_TAGS: Record<BrainRole, string> = {
+  architect: 'omega-architect',
+  coder: 'omega-coder',
+  healer: 'omega-healer',
+  auditor: 'omega-auditor',
+};
+
 export interface BrainProfile {
   role: BrainRole;
   labelAr: string;
@@ -34,7 +42,7 @@ export const BRAIN_PROFILES: Record<BrainRole, BrainProfile> = {
     repeatPenalty: 1.05,
     systemContract:
       'You are the architecture brain. Analyze requirements and existing symbols. Output a bounded architecture plan with explicit file responsibilities, contracts and risks. Never invent APIs that are not in the repository index. Return JSON only.',
-    preferredModelIds: ['qwen2.5-coder:7b', 'qwen2.5-coder:3b', 'qwen2.5-coder:1.5b'],
+    preferredModelIds: ['omega-architect', 'qwen2.5-coder:7b', 'qwen2.5-coder:3b', 'qwen2.5-coder:1.5b'],
   },
   coder: {
     role: 'coder',
@@ -46,7 +54,7 @@ export const BRAIN_PROFILES: Record<BrainRole, BrainProfile> = {
     repeatPenalty: 1.08,
     systemContract:
       'You are the implementation brain. Emit complete, dependency-free, production-grade files with runnable tests. Respect the existing symbol index and never duplicate declarations. Return JSON only.',
-    preferredModelIds: ['qwen2.5-coder:7b', 'qwen2.5-coder:3b', 'qwen2.5-coder:1.5b'],
+    preferredModelIds: ['omega-coder', 'qwen2.5-coder:7b', 'qwen2.5-coder:3b', 'qwen2.5-coder:1.5b'],
   },
   healer: {
     role: 'healer',
@@ -58,7 +66,7 @@ export const BRAIN_PROFILES: Record<BrainRole, BrainProfile> = {
     repeatPenalty: 1.1,
     systemContract:
       'You are the repair brain. Propose the smallest single-cause patch that fixes the quoted verifier evidence. If evidence is insufficient, return no patch. Never guess a passing test count. Return JSON only.',
-    preferredModelIds: ['qwen2.5-coder:3b', 'qwen2.5-coder:1.5b', 'qwen2.5-coder:7b'],
+    preferredModelIds: ['omega-healer', 'qwen2.5-coder:3b', 'qwen2.5-coder:1.5b', 'qwen2.5-coder:7b'],
   },
   auditor: {
     role: 'auditor',
@@ -70,7 +78,7 @@ export const BRAIN_PROFILES: Record<BrainRole, BrainProfile> = {
     repeatPenalty: 1.05,
     systemContract:
       'You are the security and quality auditor. Report only findings backed by file/line evidence or verifier output. Flag secrets, traversal, eval/exec and shell=True. Never claim formal verification. Return JSON only.',
-    preferredModelIds: ['qwen2.5-coder:7b', 'qwen2.5-coder:3b'],
+    preferredModelIds: ['omega-auditor', 'qwen2.5-coder:7b', 'qwen2.5-coder:3b'],
   },
 };
 
@@ -83,8 +91,13 @@ export function isBrainRole(value: unknown): value is BrainRole {
 /** Pick the first preferred model that is actually installed; never a cloud id. */
 export function resolveBrainModel(role: BrainRole, installedModelIds: ReadonlySet<string>): string {
   const profile = BRAIN_PROFILES[role];
-  const match = profile.preferredModelIds.find((id) => installedModelIds.has(id) && isLocalModelId(id));
-  const fallback = profile.preferredModelIds.find((id) => isLocalModelId(id));
+  const dedicated = DEDICATED_BRAIN_TAGS[role];
+  // v4: dedicated tags are used only when Ollama actually reports them; they
+  // never become a silent fallback for a missing local brain.
+  if (installedModelIds.has(dedicated)) return dedicated;
+  const catalogIds = profile.preferredModelIds.filter((id) => id !== dedicated);
+  const match = catalogIds.find((id) => installedModelIds.has(id) && isLocalModelId(id));
+  const fallback = catalogIds.find((id) => isLocalModelId(id));
   return match || fallback || 'qwen2.5-coder:3b';
 }
 

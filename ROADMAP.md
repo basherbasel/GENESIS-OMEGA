@@ -254,14 +254,14 @@ npm run lint && npm test
 | 5 — الحوار الصوتي | ✅ | `VoiceHud` + `voice_dialogue` + STT محلي + Piper ثنائي اللغة |
 | 4د — لغة إنجليزية | ✅ | `i18n.ts` + زر تبديل + اختبار E2E |
 
-### 14.2 خريطة الملفات (136 ملف متتبع)
+### 14.2 خريطة الملفات (144 ملف متتبع)
 
 | المسار | Count | الوظيفة |
 |---|---|---|
 | `server.ts` | 1 | Express + كل المسارات + SSE + طابور المهام + خط الإنتاج + الحوار الصوتي |
 | `src/App.tsx` + `main.tsx` + `index.css` | 3 | إدارة الواجهة والتنقل والبث المباشر |
 | `src/components/` | 12 | Studio / Dashboard / Vault / Watch / Migration / Catalog / Export / HUD / VoiceHud / Nav / Auth / Enterprise |
-| `src/lib/` | 81 | وحدات إنتاج + 31 اختباراً + `i18n.ts` بـ 502 مفتاحاً + `voice/` (4) + `security/` (3) + وحدات v3 |
+| `src/lib/` | 88 | وحدات إنتاج + 32 اختباراً + `i18n.ts` بـ 512 مفتاحاً + `voice/` (4) + `security/` (3) + `runtime/` (3) + وحدات v3 |
 | `scripts/` | 8 | backup / restore / doctor / check-secrets / Job Object / bootstrap.ps1 / bootstrap.sh / vosk adapter |
 | `.github/workflows/ci.yml` | 1 | بوابات CI الأربع |
 | جذر المشروع | 27 | توثيق + LICENSE + CONTRIBUTING + إعدادات + مرآة المتجر + حزمة التأمينات |
@@ -282,7 +282,7 @@ npm run lint && npm test
 
 ```
 npm run lint        → tsc --noEmit
-npm test            → 138 pass / 0 fail / 0 skipped
+npm test            → 146 pass / 0 fail / 0 skipped
 npm run check       → lint + test + check:secrets + doctor = exit 0
 npm run doctor      → critical 9/9
 npm run doctor -- --ci → 4/4 مُنفَّذ + 5 مُعلَن تخطيها
@@ -311,6 +311,7 @@ npm run restore -- <dir> --yes → RESTORE_OK
 | 5 — الحوار الصوتي ثنائي اللغة | ✅ منجزة | `voice/voice_dialogue.ts` · `voice/offline_stt.ts` · `VoiceHud.tsx` · 10 اختبارات + E2E حواري |
 | v3 الجزء 1 — الرسم/Build Radius، مجلس المراجعة، مقياس الدقة | ✅ منجزة | `brains/dependency_graph.ts` · `enterprise/peer_review_council.ts` · `enterprise/precision_verifier.ts` + 9 اختبارات |
 | v3 الجزء 2 — تلوث، سجل مشفّر، pair-programmer، واجهات v3 | ✅ منجزة | `security/taint_scanner.ts` · `security/audit_ledger.ts` · مسارات `/api/security/*` · لوحات Enterprise v3 + 4 اختبارات |
+| v4.0 — عقول omega، تثبيت هلوسة، كاش SHA-256، مرونة، قياسات | ✅ منجزة | `models/brains/Modelfile.*` · `anti_hallucination.ts` · `runtime/fast_cache.ts` · `runtime/resilience_guard.ts` · `/api/runtime/metrics` + 8 اختبارات |
 
 **ما أُنجز فعلياً في المرحلة 1:**
 - 4 ملفات عقول (`architect`, `coder`, `healer`, `auditor`) ببارامترات حتمية (temperature 0.05–0.25، num_ctx 4096–8192) وعقود نظام، مع اختيار نموذج Ollama مثبّت فقط — لا معرّف سحابي واحد.
@@ -359,7 +360,13 @@ npm run restore -- <dir> --yes → RESTORE_OK
 - ثلاث لوحات جديدة في `EnterpriseView` (رسم/تأثير، تلوث/مراجعة، سجل مشفّر) بمفاتيح عربية/إنجليزية كاملة (502 مفتاحاً)، وE2E ثاني عشر يتحقق من اللوحات والحوار في اللغتين.
 - 3 اختبارات أمنية جديدة + اختبار صوتي v3، و`npm test` → 138/138، E2E → 12/12.
 
-**التالي:** لا مرحلة تالية في خارطة v2.0/v3.0 — الإصدار جاهز للمراجعة النهائية؛ أي عمل جديد يُسجَّل أولاً في `BACKLOG.md` بقرار وتاريخ.
+**ما أُنجز فعلياً في v4.0:**
+- أربعة قوالب Modelfile متتبعة في `models/brains/` للعقول `omega-architect` و`omega-coder` و`omega-healer` و`omega-auditor` ببارامترات وتعاقدات صارمة؛ `.gitignore` يستبعد الأوزان الثنائية ويسمح بtemplates فقط. `brain_registry` يفضّل الوسم المخصص عند تثبيته فعلياً ويعود إلى `qwen2.5-coder:*` بدونه. سكربتات التهيئة تدعم `--create-brains`/`-CreateBrains` وتضبط تحسينات Ollama المحلية داخل العملية فقط، مع إرشادات نماذج Piper ثنائية اللغة.
+- `anti_hallucination.ts` يتحقق من الواردات والرموز مقابل الملفات الحقيقية والفهرس والmanifestات قبل أي تحقق OS، ويرفض مخرجات JSON/Patch غير الصارمة أو المراسي غير الموجودة (`HALLUCINATED_IMPORT`/`UNRESOLVED_SYMBOL`) مع تسجيل في السجل المشفر.
+- `runtime/fast_cache.ts` يخزّن نتائج الرسم والتلوث في SQLite بمفتاح SHA-256 لمحتوى الملفات مع LRU 256، ويوفّر `pruneContextForLocalModel` وبوابة صياغة سريعة قبل تشغيل الاختبارات الكاملة. `runtime/resilience_guard.ts` يكسر ركود الإصلاح بتوقيع خطأ حتمي، يقتل أشجار العمليات عبر taskkill/process-group، وينظّف المساحات القديمة عند الإقلاع.
+- `GET /api/runtime/metrics` يعيد عدّادات وإحصاءات حقيقية فقط؛ شريط ثنائي اللغة في `EnterpriseView` يعرضها. 7 اختبارات v4 + اختبار عقول مخصص + E2E ثالث عشر، و`npm test` → 146/146، E2E → 13/13.
+
+**التالي:** اكتملت v4.0 — لا مرحلة تالية؛ أي عمل جديد يُسجَّل أولاً في `BACKLOG.md` بقرار وتاريخ.
 
 **التوقيع:** المهندس بشار — owner & executor
 **آخر تحديث:** 23 نوفمبر 2026

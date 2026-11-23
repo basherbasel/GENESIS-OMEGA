@@ -11,8 +11,8 @@ sh scripts/bootstrap.sh --pull-models    # يسحب النماذج صراحةً 
 npm install
 cp .env.example .env.local   # أضف GEMINI_API_KEY اختيارياً للتوليد السحابي
 npm run dev                  # http://127.0.0.1:3000
-npm test                     # 138 اختبار وحدة/تكامل
-npm run test:e2e             # 12 اختبار متصفح حقيقية (Playwright)
+npm test                     # 146 اختبار وحدة/تكامل
+npm run test:e2e             # 13 اختبار متصفح حقيقية (Playwright)
 npm run check                # lint + test + secrets + doctor
 ```
 
@@ -225,9 +225,19 @@ curl http://localhost:3000/api/security/ledger
 
 `POST /api/security/taint-scan` traces untrusted sources into CWE-78/89/22/94/79 sinks across eight languages. `GET /api/security/ledger` returns recent entries plus `verifyLedgerIntegrity()`: each entry is `SHA256(prevHash|seq|timestamp|actor|action|target|outcomeHash)` with genesis hash `0…0`, so edits, deletions and reordering are detectable. Voice supports “What is the blast radius of …?” / «ما تأثير تعديل ملف…» and “Verify audit ledger integrity” / «افحص سلامة سجل التدقيق».
 
+## v4 runtime & grounding
+
+Four dedicated Ollama brains are shipped as tracked Modelfile templates in `models/brains/` (`omega-architect`, `omega-coder`, `omega-healer`, `omega-auditor`). Create them explicitly with `sh scripts/bootstrap.sh --create-brains` (or `-CreateBrains` on Windows); bootstrap also applies process-local Ollama performance tuning. Heavy `*.gguf`/`*.onnx` weights remain ignored.
+
+```bash
+curl http://localhost:3000/api/runtime/metrics
+```
+
+The metrics endpoint reports only measured data: SHA-256 cache hits/misses and saved milliseconds, blocked hallucination count, stagnation breaks, dedicated-brain resolution, and cleaned workspaces. Generated code is grounded against real imports/symbols before compilation, unchanged files reuse cached graph/taint results, and the healing loop stops on repeated error signatures.
+
 ## Verification & integrity policy
 
-- `npm test` runs **every** unit/integration test file under `src/lib/*.test.ts` (31 files, 138 cases). Browser tests are separate: `npm run test:e2e` (12 cases, including full bilingual shell parity, a bilingual voice dialogue roundtrip and the v3 security panels). It is the
+- `npm test` runs **every** unit/integration test file under `src/lib/*.test.ts` (32 files, 146 cases). Browser tests are separate: `npm run test:e2e` (13 cases, including v4 runtime telemetry). It is the
   canonical check; `npm run lint` / `npx tsc --noEmit` must also pass with zero errors.
 - Verification reports count **only tests the OS runner actually executed**. When no test
   suite exists in a generated project, the report says so explicitly instead of inventing

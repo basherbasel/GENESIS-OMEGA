@@ -245,6 +245,28 @@ test('لوحات v3 الأمنية ونطاق التأثير تعمل بالعر
   await expect(page.getByRole('button', { name: 'Verify ledger' })).toBeVisible();
 });
 
+test('شريط القياسات اللحظي يعرض بيانات /api/runtime/metrics بالعربية والإنجليزية', async ({ page, request }) => {
+  const response = await request.get('/api/runtime/metrics');
+  expect(response.ok()).toBeTruthy();
+  const metrics = await response.json();
+  expect(typeof metrics.cache.hitRate).toBe('number');
+  expect(typeof metrics.cache.savedMs).toBe('number');
+  expect(typeof metrics.grounding.blockedHallucinations).toBe('number');
+  expect(typeof metrics.healing.stagnationBreaks).toBe('number');
+  expect(typeof metrics.brains.allDedicatedReady).toBe('boolean');
+  expect(typeof metrics.workspaces.cleaned).toBe('number');
+
+  await page.goto('/');
+  await page.getByRole('button', { name: 'أوامر الشركة' }).click();
+  const strip = page.getByTestId('enterprise-runtime-strip');
+  await expect(strip).toBeVisible();
+  await expect(strip).toContainText('سرعة التشغيل وحاجز منع الهلوسة');
+  await expect(strip).toContainText('معدل إصابة الذاكرة');
+  await page.getByRole('button', { name: 'English' }).click();
+  await expect(strip).toContainText('Runtime speed & zero-hallucination guard');
+  await expect(strip).toContainText('Cache hit rate');
+});
+
 test('صيانة مستودع قائم: تدقيق حقيقي ورفض مسار غير آمن وعرض اللوحة', async ({ page, request }) => {
   const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'omega-e2e-ingest-'));
   fs.writeFileSync(

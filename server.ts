@@ -83,6 +83,13 @@ import {
   runPeerReviewCouncil,
 } from './src/lib/enterprise/peer_review_council';
 import { measurePrecision } from './src/lib/enterprise/precision_verifier';
+import { IncrementalArtifactCache } from './src/lib/runtime/fast_cache';
+import {
+  defaultSweepRoots,
+  HealCycleBreaker,
+  sweepStaleWorkspaces,
+} from './src/lib/runtime/resilience_guard';
+import { DEDICATED_BRAIN_TAGS } from './src/lib/brains/brain_registry';
 import {
   EVOLVE_MODES,
   evolveAndHardenRepo,
@@ -181,6 +188,21 @@ const recordAudit = (action: string, target: string, outcome: unknown, detail?: 
   });
   studioEvents.publish('ledger', { seq: entry.seq, hash: entry.hash, action, target });
   return entry;
+};
+
+// v4: content-addressed cache shared by graph, taint and telemetry endpoints.
+const runtimeCache = new IncrementalArtifactCache({
+  getMetaValue: (key) => STORE_REPOSITORY.getMetaValue(key),
+  setMetaValue: (key, value) => STORE_REPOSITORY.setMetaValue(key, value),
+});
+
+// v4 measured telemetry (all values come from real runtime events).
+const runtimeTelemetry = {
+  blockedHallucinations: 0,
+  stagnationBreaks: 0,
+  cleanedWorkspaces: 0,
+  lastSweepAt: null as string | null,
+  sweepDetail: '',
 };
 
 function getAiClient(): GoogleGenAI | null {
@@ -718,9 +740,14 @@ async function runProjectHealing(project: ProjectRecord, maxIterations: number) 
     baselineVerification,
     workspaceRoot: path.join(DATA_DIR, 'workspaces'),
     maxIterations,
+    breaker: new HealCycleBreaker(),
     verify: (files, workspaceDir) =>
       verifyProjectWorkspace(workspaceDir, files, project.ecosystemKey),
   });
+  if (outcome.report.status === 'stagnant') {
+    runtimeTelemetry.stagnationBreaks += 1;
+    recordAudit('heal_stagnation', `project_${project.id}`, { status: 'stagnant', attempts: outcome.report.attempts.length });
+  }
   if (outcome.report.attempts.length > 0) {
     project.files = outcome.files;
     await recomputeProjectAuditState(
@@ -962,6 +989,15 @@ async function startServer() {
   const app = express();
   app.use(express.json({ limit: '30mb' }));
 
+  // v4: remove only old, clearly-owned temporary workspaces at startup.
+  const sweep = sweepStaleWorkspaces(defaultSweepRoots(DATA_DIR));
+  runtimeTelemetry.cleanedWorkspaces = sweep.removed.length;
+  runtimeTelemetry.lastSweepAt = new Date().toISOString();
+  runtimeTelemetry.sweepDetail = `removed=${sweep.removed.length} kept=${sweep.kept} errors=${sweep.errors.length}`;
+  if (sweep.removed.length > 0 || sweep.errors.length > 0) {
+    recordAudit('workspace_sweep', DATA_DIR, { removed: sweep.removed.length, errors: sweep.errors.length }, runtimeTelemetry.sweepDetail);
+  }
+
   // Optional authentication. When OMEGA_API_KEY is set, every API/sandbox
   // route requires the HttpOnly session cookie issued by /api/auth/login.
   let sessionToken = newSessionToken();
@@ -1175,6 +1211,7 @@ async function startServer() {
         baselineVerification: verification,
         workspaceRoot: path.join(DATA_DIR, 'workspaces'),
         maxIterations: 3,
+        breaker: new HealCycleBreaker(),
         verify: (candidate, dir) => verifyProjectWorkspace(dir, candidate, ecosystemKey),
       });
       return outcome.report.attempts.length > 0 ? { files: outcome.files, report: outcome.report } : null;
@@ -1184,6 +1221,9 @@ async function startServer() {
       precisionGate(label, departments, files, workspaceDir),
     onEvent: (event) => {
       studioEvents.publish('work_order', event);
+      if (['HALLUCINATED_IMPORT', 'UNRESOLVED_SYMBOL'].includes(event.errorCode || '')) {
+        runtimeTelemetry.blockedHallucinations += 1;
+      }
       if (event.stage === 'VERIFIED_COMMIT' || event.stage === 'FAILED_CLOSED') {
         const order = workOrderEngine.get(event.orderId);
         recordAudit(
@@ -1237,6 +1277,7 @@ async function startServer() {
         baselineVerification: verification,
         workspaceRoot: path.join(DATA_DIR, 'workspaces', 'ingest'),
         maxIterations: 3,
+        breaker: new HealCycleBreaker(),
         verify: (candidate, dir) => verifyProjectWorkspace(dir, candidate, ecosystemKey),
       });
       return outcome.report.attempts.length > 0 ? { files: outcome.files, report: outcome.report } : null;
@@ -1247,6 +1288,9 @@ async function startServer() {
       precisionGate(label, departments, files, workspaceDir),
     onEvent: (event) => {
       studioEvents.publish('ingest', event);
+      if (['HALLUCINATED_IMPORT', 'UNRESOLVED_SYMBOL'].includes(event.errorCode || '')) {
+        runtimeTelemetry.blockedHallucinations += 1;
+      }
       if (event.stage === 'PROMOTED' || event.stage === 'FAILED_CLOSED') {
         recordAudit(
           `repo_ingest.${event.stage.toLowerCase()}`,
@@ -1264,24 +1308,9 @@ async function startServer() {
   });
   const offlineSttConfig = resolveOfflineStt();
 
-  // v3 pair-programmer probes shared by the voice router and REST routes.
-  const graphForPath = (repoPath: string, targetFile?: string) => {
-    const index = indexRepository(repoPath, { maxFiles: 600, maxBytesPerFile: 512 * 1024 });
-    const graph = buildDependencyGraph(index);
-    const cycles = findCycles(graph);
-    const order = topologicalOrder(graph);
-    const radius = targetFile ? computeBlastRadius(graph, targetFile, undefined, index) : null;
-    return {
-      root: graph.root,
-      nodes: graph.nodes,
-      edges: graph.edges.length,
-      unresolved: graph.unresolved.length,
-      cycles,
-      order,
-      ...(radius ? { radius } : {}),
-    };
-  };
-  const taintForPath = (repoPath: string) => {
+  // v3/v4 probes shared by the voice router and REST routes. File contents are
+  // hashed once; unchanged repositories reuse cached graph/taint results.
+  const readWorkspaceFiles = (repoPath: string) => {
     const index = indexRepository(repoPath, { maxFiles: 600, maxBytesPerFile: 512 * 1024 });
     const files: Record<string, string> = {};
     for (const entry of index.files) {
@@ -1291,8 +1320,34 @@ async function startServer() {
         // unreadable files are skipped, never fabricated
       }
     }
-    const findings = scanTaintFlows(files);
-    recordAudit('taint_scan', repoPath, { findings: findings.length }, `cwes=${[...new Set(findings.map((f) => f.cweId))].join(',')}`);
+    return { index, files };
+  };
+
+  const graphForPath = (repoPath: string, targetFile?: string) => {
+    const { index, files } = readWorkspaceFiles(repoPath);
+    const cached = runtimeCache.getOrCompute('graph', files, 'v4.0.1', () => {
+      const graph = buildDependencyGraph(index);
+      return {
+        root: graph.root,
+        nodes: graph.nodes,
+        edges: graph.edges.length,
+        unresolved: graph.unresolved.length,
+        cycles: findCycles(graph),
+        order: topologicalOrder(graph),
+      };
+    });
+    const graph = cached.value;
+    const radius = targetFile
+      ? computeBlastRadius(buildDependencyGraph(index), targetFile, undefined, index)
+      : null;
+    return { ...graph, ...(radius ? { radius } : {}) };
+  };
+
+  const taintForPath = (repoPath: string) => {
+    const { files } = readWorkspaceFiles(repoPath);
+    const cached = runtimeCache.getOrCompute('taint', files, 'v4.0.1', () => scanTaintFlows(files));
+    const findings = cached.value;
+    recordAudit('taint_scan', repoPath, { findings: findings.length, cacheHit: cached.hit }, `cwes=${[...new Set(findings.map((f) => f.cweId))].join(',')}`);
     return findings;
   };
 
@@ -1835,6 +1890,36 @@ code{background:#020617;padding:2px 6px;border-radius:4px;color:#38bdf8}</style>
   app.get('/api/security/ledger', (_req, res) => {
     const entries = auditStore.load();
     res.json({ entries: entries.slice(-50), verification: verifyLedgerIntegrity(entries) });
+  });
+
+  // v4: real measured runtime telemetry (no fabricated timings or counters).
+  app.get('/api/runtime/metrics', (_req, res) => {
+    const cache = runtimeCache.stats();
+    const total = cache.hits + cache.misses;
+    const dedicated: Record<string, boolean> = {};
+    const resolved: Record<string, string> = {};
+    for (const role of Object.keys(DEDICATED_BRAIN_TAGS) as Array<keyof typeof DEDICATED_BRAIN_TAGS>) {
+      dedicated[role] = installedBrains.has(DEDICATED_BRAIN_TAGS[role]);
+      resolved[role] = resolveBrainModel(role, installedBrains);
+    }
+    res.json({
+      at: new Date().toISOString(),
+      cache: { ...cache, hitRate: total > 0 ? Math.round((cache.hits / total) * 10_000) / 10_000 : 0 },
+      grounding: { blockedHallucinations: runtimeTelemetry.blockedHallucinations },
+      healing: { stagnationBreaks: runtimeTelemetry.stagnationBreaks },
+      brains: {
+        dedicated,
+        resolved,
+        installedCount: installedBrains.size,
+        allDedicatedReady: Object.values(dedicated).every(Boolean),
+      },
+      workspaces: {
+        activeJobs: studioJobs.activeCount,
+        cleaned: runtimeTelemetry.cleanedWorkspaces,
+        lastSweepAt: runtimeTelemetry.lastSweepAt,
+        detail: runtimeTelemetry.sweepDetail,
+      },
+    });
   });
 
   // 2. Projects CRUD & Pipeline

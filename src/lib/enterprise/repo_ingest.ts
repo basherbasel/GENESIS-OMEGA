@@ -30,6 +30,8 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 
 import { createDependencyAnalyzer } from '../brains/dependency_graph';
+import { verifyImportsAndSymbols } from '../brains/anti_hallucination';
+import { runFastFailSyntaxGate } from '../runtime/fast_cache';
 import { formatIndexForPrompt, indexRepository, type RepoIndex } from '../brains/repo_indexer';
 import { applySurgicalPatches, type PatchFailure, type PatchRequest } from '../brains/surgical_patcher';
 import type { BrainRole } from '../brains/brain_registry';
@@ -1145,6 +1147,22 @@ export async function evolveAndHardenRepo(
 
     // 5. Re-verify on the real OS runner, then re-scan.
     let candidate = applied.files;
+
+    const grounding = verifyImportsAndSymbols({
+      workspaceDir: ingest.workspacePath,
+      generatedFiles: candidate,
+    });
+    if (grounding.blocked) {
+      const first = grounding.findings[0];
+      fail(first.code, `${first.file}:${first.line} — ${first.detail}`);
+      return;
+    }
+    const syntaxGate = runFastFailSyntaxGate(candidate);
+    if (!syntaxGate.ok) {
+      fail('SYNTAX_GATE_FAILED', syntaxGate.failures.slice(0, 4).map((item) => `${item.file}: ${item.message}`).join(' | '));
+      return;
+    }
+
     let verification = await deps.verify(ingest.workspacePath, candidate, ingest.ecosystemKey);
     emit(
       'OS_VERIFICATION',

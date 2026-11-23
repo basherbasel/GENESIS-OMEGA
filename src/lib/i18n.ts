@@ -527,6 +527,16 @@ export const TRANSLATIONS = {
   'ent.ledger.detail': { ar: 'التفاصيل', en: 'Detail' },
   'ent.ledger.brokenSeq': { ar: 'تسلسل مكسور عند', en: 'Broken sequence at' },
   'ent.ledger.brokenHash': { ar: 'تجزئة مكسورة عند', en: 'Broken hash at' },
+  'v4.strip.title': { ar: 'سرعة التشغيل وحاجز منع الهلوسة', en: 'Runtime speed & zero-hallucination guard' },
+  'v4.strip.cache': { ar: 'معدل إصابة الذاكرة', en: 'Cache hit rate' },
+  'v4.strip.saved': { ar: 'وقت مُوفَّر', en: 'Time saved' },
+  'v4.strip.blocked': { ar: 'هلوسات ممنوعة', en: 'Blocked hallucinations' },
+  'v4.strip.stagnation': { ar: 'إيقاف الركود', en: 'Stagnation breaks' },
+  'v4.strip.brains': { ar: 'عقول مخصصة', en: 'Dedicated brains' },
+  'v4.strip.workspaces': { ar: 'مساحات منظَّفة', en: 'Cleaned workspaces' },
+  'v4.strip.ready': { ar: 'جاهز', en: 'ready' },
+  'v4.strip.partial': { ar: 'جزئي', en: 'partial' },
+  'v4.strip.none': { ar: 'لا بيانات', en: 'No data' },
 } satisfies Record<string, TranslationEntry>;
 
 export type TranslationKey = keyof typeof TRANSLATIONS;
