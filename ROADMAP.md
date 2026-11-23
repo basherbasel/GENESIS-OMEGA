@@ -297,6 +297,25 @@ npm run restore -- <dir> --yes → RESTORE_OK
 - Docker و24 نطاقاً ونشر سحابي (قرار `DECISIONS.md`).
 - إثبات تسليم خارجي (`PROOF.md` فارغ من التسليم).
 
+## 15. v2.0 — Autonomous Software House (خارطة جديدة)
+
+الانتقال من استوديو توليد إلى شركة برمجيات محلية بالكامل، فوق خط الأساس `0b0d1b5`، دون لمس `ai_pipeline.ts`.
+
+| المرحلة | الحالة | الوحدات |
+|---|---|---|
+| **1 — العقول المحلية وفهرس المستودعات** | ✅ منجزة | `brains/brain_registry.ts` · `brains/repo_indexer.ts` · `brains/surgical_patcher.ts` + 4 اختبارات |
+| 2 — محرك الشركة والأقسام العشرة | ⬜ | `enterprise/departments.ts` · `enterprise/work_order_engine.ts` |
+| 3 — صيانة المشاريع القائمة | ⬜ | `enterprise/repo_ingest.ts` + توسيع `healer.ts` |
+| 4 — الجاهزية مفتوحة المصدر | ⬜ | `LICENSE` · `CONTRIBUTING.md` · `scripts/bootstrap.ps1/.sh` |
+
+**ما أُنجز فعلياً في المرحلة 1:**
+- 4 ملفات عقول (`architect`, `coder`, `healer`, `auditor`) ببارامترات حتمية (temperature 0.05–0.25، num_ctx 4096–8192) وعقود نظام، مع اختيار نموذج Ollama مثبّت فقط — لا معرّف سحابي واحد.
+- فهرس رموز حقيقي بلا تبعيات يغطي TS/JS وPython وGo وRust وC/C++ وJava وC# مع نطاقات أسطر وميزانية رموز `formatIndexForPrompt`.
+- ترقيع جراحي `SEARCH/REPLACE` بحماية مسارات، تفريق حالة غموض، تحقق JSON/أقواس، وتراجع ذري للدفعة كاملة.
+- اختبار يقرأ ملفات الوحدات الثلاثة ويؤكد خلوّها من أي client سحابي.
+
+**التالي:** المرحلة 2 — محرك الأقسام العشرة وآلة حالة أوامر العمل مع بث SSE.
+
 **التوقيع:** المهندس بشار — owner & executor
 **آخر تحديث:** 23 نوفمبر 2026
 

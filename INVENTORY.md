@@ -5,9 +5,9 @@
 ## طريقة الجرد
 
 ```
-git ls-files | Measure-Object -Line          → 108 ملفاً متتبعاً (بعد هذا الالتزام)
-Get-ChildItem src/lib/*.test.ts              → 24 ملف اختبار
-npm test                                     → 101 pass / 0 fail / 0 skipped
+git ls-files | Measure-Object -Line          → 112 ملفاً متتبعاً (بعد هذا الالتزام)
+Get-ChildItem src/lib/**/*.test.ts           → 25 ملف اختبار
+npm test                                     → 105 pass / 0 fail / 0 skipped
 npm run test:e2e                             → 6 pass / 0 fail (Playwright chromium)
 npm run check                                → critical 9/9 · exit 0
 ```
@@ -17,19 +17,20 @@ npm run check                                → critical 9/9 · exit 0
 | المجلد | عدد الملفات | المحتوى |
 |---|---|---|
 | `(root)` | 25 | `server.ts`، إعدادات الحزمة، 15 ملف توثيق (منها `INVENTORY.md`)، `.gitignore`، `.env.example`، `models.config.json`، `package-lock.json`. |
-| `src` | 73 | `App.tsx`، `main.tsx`، `index.css`، 10 مكوّنات، وحدات `lib`، 24 ملف اختبار (ضمن الـ 73). |
+| `src` | 77 | `App.tsx`، `main.tsx`، `index.css`، 10 مكوّنات، وحدات `lib` + `lib/brains` (3)، 25 ملف اختبار (ضمن الـ 77). |
 | `scripts` | 5 | `backup.ts`, `restore.ts`, `doctor.ts`, `check-secrets.ts`, `windows_job_sandbox.ps1`. |
 | `.github` | 1 | `workflows/ci.yml`. |
 | `e2e` | 1 | `studio.spec.ts` — 6 اختبارات متصفح حقيقية عبر Playwright. |
 | `(root)` | — | `playwright.config.ts` لإعداد المتصفح والخادم. |
 | `public` | 2 | أصول المنصة الأصلية. |
 
-## سجل الاختبارات (24 ملفاً / 101 اختباراً)
+## سجل الاختبارات (25 ملفاً / 105 اختباراً)
 
 | الملف | عدد الحالات | ما يغطيه |
 |---|---|---|
 | `auth.test.ts` | 4 | جلسة HttpOnly، مقارنة ثابتة، خنق الدخول. |
 | `binding_guard.test.ts` | 3 | رفض `0.0.0.0` بلا مفتاح بـ `INSECURE_BINDING`. |
+| `brains/brains.test.ts` | 4 | ملفات العقول الأربعة، فهرسة 5 لغات، ترقيع ذري وتراجع، حظر سحابة. |
 | `dashboard_metrics.test.ts` | 3 | تجميع آمن للحالة الفارغة، درجات واختبارات، قياسات وإصلاح حقيقي. |
 | `doctor_ci.test.ts` | 2 | `doctor --ci` يفرض البوابات المحمولة ويُعلن المتخطى. |
 | `event_bus.test.ts` | 4 | عزل المواضيع، إلغاء الاشتراك، إطارات SSE، بث حي، فشل مستمع آمن. |
@@ -57,7 +58,7 @@ npm run check                                → critical 9/9 · exit 0
 
 ```
 npm run lint         → tsc --noEmit
-npm test             → 101/101
+npm test             → 105/105
 npm run test:e2e     → 6/6 (Playwright)
 npm run check:secrets→ SECRETS_OK findings=0
 npm run doctor       → critical 9/9
