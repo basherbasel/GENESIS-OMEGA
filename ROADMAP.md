@@ -250,20 +250,21 @@ npm run lint && npm test
 | 4أ — اللوحة | ✅ | `DashboardView` بـ CSS خالص من `dashboard_metrics.ts` |
 | 4ب — PDF | ✅ | `@media print` + `window.print()` + رابط `?print=1` |
 | 5 — ربط الجسر المحلي | ✅ | `local_synthesis.ts`، `engine=ollama-local` حياً، `ai_pipeline.ts` لم يُلمس |
-| 4ج — E2E | ✅ | 10 اختبارات Playwright حقيقية (`npm run test:e2e`) |
+| 4ج — E2E | ✅ | 11 اختبارات Playwright حقيقية (`npm run test:e2e`) |
+| 5 — الحوار الصوتي | ✅ | `VoiceHud` + `voice_dialogue` + STT محلي + Piper ثنائي اللغة |
 | 4د — لغة إنجليزية | ✅ | `i18n.ts` + زر تبديل + اختبار E2E |
 
-### 14.2 خريطة الملفات (122 ملف متتبع)
+### 14.2 خريطة الملفات (128 ملف متتبع)
 
 | المسار | Count | الوظيفة |
 |---|---|---|
-| `server.ts` | 1 | Express + كل المسارات + SSE + طابور المهام + خط الإنتاج |
+| `server.ts` | 1 | Express + كل المسارات + SSE + طابور المهام + خط الإنتاج + الحوار الصوتي |
 | `src/App.tsx` + `main.tsx` + `index.css` | 3 | إدارة الواجهة والتنقل والبث المباشر |
-| `src/components/` | 11 | Studio / Dashboard / Vault / Watch / Migration / Catalog / Export / HUD / Nav / Auth / Enterprise |
-| `src/lib/` | 69 | وحدات إنتاج + 27 اختباراً + `i18n.ts` بـ 425 مفتاحاً |
-| `scripts/` | 7 | backup / restore / doctor / check-secrets / Job Object / bootstrap.ps1 / bootstrap.sh |
+| `src/components/` | 12 | Studio / Dashboard / Vault / Watch / Migration / Catalog / Export / HUD / VoiceHud / Nav / Auth / Enterprise |
+| `src/lib/` | 73 | وحدات إنتاج + 28 اختباراً + `i18n.ts` بـ 469 مفتاحاً + `voice/` (4) |
+| `scripts/` | 8 | backup / restore / doctor / check-secrets / Job Object / bootstrap.ps1 / bootstrap.sh / vosk adapter |
 | `.github/workflows/ci.yml` | 1 | بوابات CI الأربع |
-| جذر المشروع | 28 | توثيق + LICENSE + CONTRIBUTING + إعدادات + مرآة المتجر + حزمة التأمينات |
+| جذر المشروع | 27 | توثيق + LICENSE + CONTRIBUTING + إعدادات + مرآة المتجر + حزمة التأمينات |
 
 ### 14.3 الخوارزميات الصحيحة المطبّقة
 
@@ -281,7 +282,7 @@ npm run lint && npm test
 
 ```
 npm run lint        → tsc --noEmit
-npm test            → 115 pass / 0 fail / 0 skipped
+npm test            → 125 pass / 0 fail / 0 skipped
 npm run check       → lint + test + check:secrets + doctor = exit 0
 npm run doctor      → critical 9/9
 npm run doctor -- --ci → 4/4 مُنفَّذ + 5 مُعلَن تخطيها
@@ -307,6 +308,7 @@ npm run restore -- <dir> --yes → RESTORE_OK
 | **2 — محرك الشركة والأقسام العشرة** | ✅ منجزة | `enterprise/departments.ts` · `enterprise/work_order_engine.ts` · `EnterpriseView.tsx` + 4 اختبارات |
 | 3 — صيانة المشاريع القائمة | ✅ منجزة | `enterprise/repo_ingest.ts` · `local_synthesis.synthesizeTextWithBridge` · لوحة الصيانة في `EnterpriseView.tsx` |
 | 4 — الجاهزية مفتوحة المصدر | ✅ منجزة | `LICENSE` · `CONTRIBUTING.md` · `SECURITY.md` · `scripts/bootstrap.ps1/.sh` · شلّ ثنائي اللغة بالكامل · 10 اختبارات E2E |
+| 5 — الحوار الصوتي ثنائي اللغة | ✅ منجزة | `voice/voice_dialogue.ts` · `voice/offline_stt.ts` · `VoiceHud.tsx` · 10 اختبارات + E2E حواري |
 
 **ما أُنجز فعلياً في المرحلة 1:**
 - 4 ملفات عقول (`architect`, `coder`, `healer`, `auditor`) ببارامترات حتمية (temperature 0.05–0.25، num_ctx 4096–8192) وعقود نظام، مع اختيار نموذج Ollama مثبّت فقط — لا معرّف سحابي واحد.
@@ -333,6 +335,13 @@ npm run restore -- <dir> --yes → RESTORE_OK
 - تهيئة صفرية عبر `scripts/bootstrap.ps1` (Windows 5.1/7+) و`scripts/bootstrap.sh` (POSIX): تحقق Node≥20، فحص Ollama على `OLLAMA_HOST` (الافتراضي `http://127.0.0.1:11434`)، `npm install`، `npm run doctor` لتقرير 18 بيئة، ثم `npm run check` وطباعة `OMEGA_LOCAL_FIRST=1 npm run dev`. سحب النماذج (`qwen2.5-coder:1.5b` و`3b`) لا يحدث إلا بعلم صريح (`-PullModels`/`--pull-models`)؛ لا PATH ولا أسرار في السكربتات.
 - شلّ ثنائي اللغة بنسبة 100%: 425 مفتاحاً في `i18n.ts` تغطي كل العروض والأزرار والحقول والحالات الفارغة والتلميحات (Studio، Export، HUD، Catalog، Watch، Vault، Migration، Auth، Enterprise، Dashboard) مع `dir` و locale ديناميكيين. اختبار E2E عاشر يبدّل اللغة عبر كل العروض بما فيها أوامر الشركة وصيانة المستودعات.
 - توثيق متزامن: `INVENTORY.md` (122 ملفاً، 27 ملف اختبار، 115 حالة، 10 E2E)، `ARCHITECTURE.md`، `LIMITATIONS.md`، `OPS.md`، `README.md` مع أوامر التهيئة ومسارات `/api/enterprise/*`.
+
+**ما أُنجز فعلياً في المرحلة 5:**
+- `src/lib/voice/voice_dialogue.ts`: كشف لغة المتحدث بـ Unicode حتمي، توجيه نوايا عربي/إنجليزي إلى أوامر عمل حقيقية (`WorkOrderEngine`)، وتدقيق/تحصين مستودعات بعد `validateRepoRoot`، وإصلاح ذاتي، وتبديل لغة، وحالة أدوات، وملخص أوامر. الحوار العام يمر عبر `synthesizeTextWithBridge()` → `llama-bridge.generate()` ببرنامج نظام بلغة المتحدث، `numCtx/numPredict` محدودين، 60 ثانية، AbortSignal، وأكواد خطأ صريحة بلا سحابة.
+- Piper ثنائي اللغة: `OMEGA_PIPER_MODEL_AR`/`OMEGA_PIPER_MODEL_EN` مع اكتشاف `ar_*`/`en_*`، اختيار النموذج حسب `lang`، تخزين WAV بـ SHA-256 يشمل اللغة والنموذج، وتطهير بيئة العملية الفرعية من مفاتيح `API_KEY/TOKEN/SECRET/PASSWORD/AUTH`.
+- `POST /api/voice/converse` ينفّذ الحوار، يولّد Piper WAV إن توفر، ويبث حدث `voice` على `/api/events`. `POST /api/voice/transcribe` محلي فقط (Whisper/Vosk) بسقف 8MB وملفات مؤقتة تُحذف، و`503 STT_NOT_CONFIGURED` عند غياب المحرك. `/api/status` يعرض `voice.offline_stt_ready` و`voice.bilingual_tts`.
+- `VoiceHud.tsx`: اختيار `Auto/العربية/English`، Push-to-Talk ومحادثة مستمرة، Barge-In يوقف الصوت ويُلغي الطلب، مؤشرات الحالة والمحرك، سجل الحوار، وحقل نص بديل؛ كل التسميات في `i18n.ts` (469 مفتاحاً).
+- 10 اختبارات صوتية + E2E حادي عشر يجري جولة عربية وإنجليزية فعلية عبر `/api/voice/converse` ويتحقق من بث `voice`.
 
 **التالي:** لا مرحلة تالية في خارطة v2.0 — الإصدار جاهز للمراجعة النهائية؛ أي عمل جديد يُسجَّل أولاً في `BACKLOG.md` بقرار وتاريخ.
 

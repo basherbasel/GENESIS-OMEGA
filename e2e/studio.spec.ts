@@ -170,6 +170,49 @@ test('تبديل اللغة يغطي كل العروض بما فيها أوام�
   await expect(page.getByRole('region', { name: 'صيانة مستودع قائم' })).toBeVisible();
 });
 
+test('لوحة الحوار الصوتي تنفذ محادثة عربية وإنجليزية حقيقية', async ({ page }) => {
+  await page.goto('/');
+  const hud = page.getByTestId('voice-hud');
+  await expect(hud).toBeVisible();
+  await expect(page.getByTestId('voice-lang-select')).toBeVisible();
+  await expect(page.getByTestId('voice-state')).toContainText('جاهز');
+
+  type VoiceWindow = Window & { __voiceEvents?: string[]; __voiceSource?: EventSource };
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve, reject) => {
+        const w = window as VoiceWindow;
+        w.__voiceEvents = [];
+        const source = new EventSource('/api/events');
+        w.__voiceSource = source;
+        const timer = setTimeout(() => reject(new Error('SSE ready timeout')), 10_000);
+        source.addEventListener('ready', () => {
+          clearTimeout(timer);
+          resolve();
+        });
+        source.addEventListener('voice', () => w.__voiceEvents?.push('voice'));
+      }),
+  );
+
+  // Arabic utterance: deterministic doctor status, spoken reply in Arabic.
+  await page.getByTestId('voice-input').fill('حالة الأدوات والبيئة؟');
+  await page.getByTestId('voice-send').click();
+  await expect(page.getByTestId('voice-utterance').last()).toContainText('حالة الأدوات والبيئة؟');
+  await expect(page.getByTestId('voice-reply').last()).toContainText('حالة الأدوات:', { timeout: 20_000 });
+  await expect(page.getByTestId('voice-state')).toContainText(/يتحدث|ينفّذ|جاهز/);
+
+  // English utterance through the same route, with an English spoken reply.
+  await page.getByRole('button', { name: 'English' }).click();
+  await page.getByTestId('voice-input').fill('list work orders');
+  await page.getByTestId('voice-send').click();
+  await expect(page.getByTestId('voice-reply').last()).toContainText('work order', { timeout: 20_000 });
+  await expect(page.getByTestId('voice-history')).toContainText('You');
+  await expect
+    .poll(() => page.evaluate(() => (window as VoiceWindow).__voiceEvents?.length || 0), { timeout: 10_000 })
+    .toBeGreaterThan(0);
+  await page.evaluate(() => (window as VoiceWindow).__voiceSource?.close());
+});
+
 test('صيانة مستودع قائم: تدقيق حقيقي ورفض مسار غير آمن وعرض اللوحة', async ({ page, request }) => {
   const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'omega-e2e-ingest-'));
   fs.writeFileSync(

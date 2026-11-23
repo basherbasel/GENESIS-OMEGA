@@ -11,8 +11,8 @@ sh scripts/bootstrap.sh --pull-models    # يسحب النماذج صراحةً 
 npm install
 cp .env.example .env.local   # أضف GEMINI_API_KEY اختيارياً للتوليد السحابي
 npm run dev                  # http://127.0.0.1:3000
-npm test                     # 115 اختبار وحدة/تكامل
-npm run test:e2e             # 10 اختبارات متصفح حقيقية (Playwright)
+npm test                     # 125 اختبار وحدة/تكامل
+npm run test:e2e             # 11 اختبار متصفح حقيقية (Playwright)
 npm run check                # lint + test + secrets + doctor
 ```
 
@@ -191,9 +191,28 @@ curl -X POST http://localhost:3000/api/enterprise/ingest/evolve \
 curl http://localhost:3000/api/enterprise/ingest/runs                     # last 20 runs
 ```
 
+## Two-way bilingual voice control (v2.0 Phase 5)
+
+The **voice panel** works in Arabic and English with `Auto (AR/EN)`, `العربية` or `English` selected explicitly. Spoken language is detected from Unicode script; deterministic routing executes real work orders (`WorkOrderEngine`), repository audit/hardening (`validateRepoRoot` + `repo_ingest`) and self-healing (`healProject`). General engineering questions are answered only by the guarded local bridge (`local_synthesis` → `llama-bridge.generate()`, fail-closed, no cloud).
+
+```bash
+curl -X POST http://localhost:3000/api/voice/converse \
+  -H 'Content-Type: application/json' \
+  -d '{"transcript":"Genesis, build an API service","preferredLang":"auto"}'
+curl -X POST http://localhost:3000/api/voice/converse \
+  -H 'Content-Type: application/json' \
+  -d '{"transcript":"أصلح المشروع رقم 1","preferredLang":"ar"}'
+curl http://localhost:3000/api/status | jq '.voice'   # offline_stt_ready, bilingual_tts
+```
+
+- **TTS:** Piper discovers Arabic (`OMEGA_PIPER_MODEL_AR` / `models/piper/ar_*.onnx`) and English (`OMEGA_PIPER_MODEL_EN` / `models/piper/en_*.onnx`) voices; WAV files are cached by SHA-256(lang|model|prosody|text). Web Speech is the browser fallback.
+- **STT:** `POST /api/voice/transcribe` uses local Whisper (`OMEGA_WHISPER_BIN`) or Vosk (`OMEGA_VOSK_MODEL`) with an 8 MiB cap, sanitized child environment and temp-file cleanup; without either it returns `503 STT_NOT_CONFIGURED` and the browser uses `SpeechRecognition`.
+- **HUD:** push-to-talk, hands-free continuous conversation, instant barge-in, live state/engine badges, transcript history and a text-input fallback. All labels are in `src/lib/i18n.ts`.
+- **Events:** each conversation publishes `event: voice` on `/api/events`.
+
 ## Verification & integrity policy
 
-- `npm test` runs **every** unit/integration test file under `src/lib/*.test.ts` (27 files, 115 cases). Browser tests are separate: `npm run test:e2e` (10 cases, including full bilingual shell parity across all views). It is the
+- `npm test` runs **every** unit/integration test file under `src/lib/*.test.ts` (28 files, 125 cases). Browser tests are separate: `npm run test:e2e` (11 cases, including full bilingual shell parity and a bilingual voice dialogue roundtrip). It is the
   canonical check; `npm run lint` / `npx tsc --noEmit` must also pass with zero errors.
 - Verification reports count **only tests the OS runner actually executed**. When no test
   suite exists in a generated project, the report says so explicitly instead of inventing

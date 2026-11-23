@@ -23,21 +23,23 @@ genesis-omega/
 │   ├── doctor.ts              فحص تشغيلي بجدول [✓/✗] وexit 0/1.
 │   └── check-secrets.ts       فحص git ls-files لأنماط بيانات سرية.
 │   ├── bootstrap.ps1          تهيئة Windows: Node≥20، Ollama، npm install/doctor/check، سحب نماذج اختياري صريح.
-│   └── bootstrap.sh           تهيئة POSIX: نفس البوابات بلا PATH changes ولا أسرار.
+│   ├── bootstrap.sh           تهيئة POSIX: نفس البوابات بلا PATH changes ولا أسرار.
+│   └── vosk_transcribe.mjs    مُكيّف Vosk اختياري (يُحمَّل فقط عند ضبط OMEGA_VOSK_MODEL).
 ├── src/
 │   ├── App.tsx                حالة الواجهة العامة والتوجيه بين العروض الستة.
 │   ├── index.css              تنسيقات Tailwind والثيم الداكن.
 │   ├── main.tsx               تحميل React في جذر DOM.
-│   ├── components/            أحد عشر مكوّن واجهة (انظر القائمة أدناه).
+│   ├── components/            اثنا عشر مكوّن واجهة (انظر القائمة أدناه).
 │   ├── lib/                   وحدات المنطق (انظر القائمة أدناه).
 │   ├── lib/brains/            عقول محلية وفهرس مستودعات وترقيع جراحي (v2.0).
-│   └── lib/enterprise/        الأقسام العشرة وآلة حالة أوامر العمل وصيانة المستودعات (v2.0).
+│   ├── lib/enterprise/        الأقسام العشرة وآلة حالة أوامر العمل وصيانة المستودعات (v2.0).
+│   └── lib/voice/             توجيه نوايا ثنائي اللغة، حوار محلي، STT محلي، تطهير بيئة العمليات.
 ├── data/                      حالة التشغيل: omega_store.db (WAL) + مرآة omega_store.json + workspaces/exports/voice_cache.
 ├── backups/                   نسخ احتياطية موسومة بالطابع الزمني.
 ├── models.config.json         إعداد Ollama المحلي (النماذج والأدوار).
 ├── public/assets/aistudio/    أصول واجهة المنصة الأصلية.
 ├── playwright.config.ts       إعداد Playwright: webServer + chromium + baseURL.
-├── e2e/studio.spec.ts         10 اختبارات E2E حقيقية (تنقل/لغة/لوحة/نموذج/SSE/أقسام/أمر عمل/PDF/صيانة مستودع/تبديل ثنائي لكل العروض).
+├── e2e/studio.spec.ts         11 اختبار E2E حقيقية (تنقل/لغة/لوحة/نموذج/SSE/أقسام/أمر عمل/PDF/صيانة مستودع/تبديل ثنائي/حوار صوتي).
 └── .github/workflows/ci.yml   install + lint + test + doctor --ci + build.
 ```
 
@@ -62,7 +64,7 @@ genesis-omega/
 | ollama_client.ts | عميل HTTP استنتاج محلي مع timeout وAbortSignal مدمجين. |
 | llama-bridge.ts | single-flight mutex ورموز أخطاء صريحة وفشل مغلق بلا fallback. |
 | offline_audio_player.ts | مشغّل صوت محلي للتجربة بدون إنترنت. |
-| piper_tts.ts | محرك Piper العصبي غير المتصل وتخزين WAV بـ SHA-256. |
+| piper_tts.ts | محرك Piper العصبي غير المتصل، نماذج عربية/إنجليزية حسب اللغة، وتخزين WAV بـ SHA-256. |
 | routing.ts | توزيع الأدوار الستة على النماذج المحلية أو السحابية. |
 | runtime_env.ts | قارئ متغيرات بيئة آمن للمتصفح والخادم معاً. |
 | sandbox_runner.ts | يشغّل عملية المشروع المولّد على منفذ حر ويتحكم في دورة حياتها. |
@@ -77,15 +79,18 @@ genesis-omega/
 | store_schema.ts | مخطط Zod يمنع تحميل متجر تالف قبل استخدام حقوله. |
 | verifier.ts | يشغّل اختبارات نظام التشغيل الفعلية ويمنع أرقاماً مُختلقة. |
 | watcher.ts | يراقب المجلدات ويقارن SHA-256 ويُطلق تدقيقاً عند التغيير. |
-| `i18n.ts` | قاموس عربي/إنجليزي من 425 مفتاحاً يغطي كل شلّ الواجهة، مع حفظ اللغة محلياً. |
+| `i18n.ts` | قاموس عربي/إنجليزي من 469 مفتاحاً يغطي كل شلّ الواجهة والحوار الصوتي، مع حفظ اللغة محلياً. |
 | brain_registry.ts | 4 ملفات عقول محلية ببارامترات حتمية وخريطة نماذج مثبّتة. |
 | repo_indexer.ts | فهرس رموز متعدد اللغات بلا تبعيات مع ميزانية رموز. |
 | surgical_patcher.ts | SEARCH/REPLACE آمن بفحص مسارات وتحقق وتراجع ذري. |
 | enterprise/departments.ts | 10 أقسام هندسية بعقود وبوابات تحقق وتصنيف حتمي يربط كل قسم بعقل محلي. |
 | enterprise/work_order_engine.ts | آلة حالة persisted لأوامر العمل مع فشل مغلق صريح وبث كل انتقال عبر SSE. |
 | enterprise/repo_ingest.ts | استيعاب مستودع قائم للقراءة فقط مع تدقيق أساس SHA-256 وبوابة ترقية ذرّية للتطوّر/التحصين وبث كل مرحلة عبر SSE. |
-| `*.test.ts` | 27 ملف اختبار تغطي 115 حالة (آخر تشغيل: 115 ناجح، 0 فاشل). |
-| `playwright.config.ts` + `e2e/studio.spec.ts` | 10 اختبارات متصفح E2E منفصلة عن `npm test`. |
+| voice/voice_dialogue.ts | كشف لغة المتحدث، توجيه نوايا حتمي (أمر عمل/مستودع/إصلاح/لغة/دكتور/ملخص) وحوار محلي عبر `local_synthesis` بفشل مغلق. |
+| voice/offline_stt.ts | تفريغ صوتي محلي اختياري (Whisper/Vosk) بسقف بايتات وبيئة معقّمة و`STT_NOT_CONFIGURED`. |
+| voice/voice_process.ts | تطهير بيئة العمليات الفرعية وإدارة حمولة الصوت وامتداداته. |
+| `*.test.ts` | 28 ملف اختبار تغطي 125 حالة (آخر تشغيل: 125 ناجح، 0 فاشل). |
+| `playwright.config.ts` + `e2e/studio.spec.ts` | 11 اختبارات متصفح E2E منفصلة عن `npm test`. |
 
 ## مكوّنات الواجهة
 
@@ -102,6 +107,7 @@ genesis-omega/
 | AuthGate.tsx | شاشة الدخول عندما يُضبط OMEGA_API_KEY. |
 | DashboardView.tsx | لوحة قياسات بـ CSS خالص من بيانات المتجر والمتحقق. |
 | EnterpriseView.tsx | تبويب أوامر الشركة: الأقسام العشرة، إنشاء/تشغيل أمر، ومراقبة الانتقالات الحيّة. |
+| VoiceHud.tsx | حوار صوتي ثنائي اللغة: اختيار اللغة، Push-to-Talk، محادثة مستمرة، Barge-In، مؤشرات حالة، وسجل حوار. |
 
 كل مكوّنات الشلّ تستقبل `language` وتمرّر نصوصها الثابتة عبر `t(language, key)`؛ عناوين المشاريع ومخرجات المتحقق تبقى بيانات بلغتها الأصلية. سكربتات `bootstrap.ps1/.sh` لا تغيّر PATH ولا تسحب نماذج إلا بعلم صريح، و`CONTRIBUTING.md` يمنع تعديل `ai_pipeline.ts`.
 
@@ -115,3 +121,5 @@ genesis-omega/
 6. `security.ts` يفحص المسارات والأسرار، ثم `verifier.ts` ينفّذ اختبارات OS حقيقية.
 7. `healer.ts` يمكنه إصلاح الفشل المُقاس فقط، و`App.tsx` يعرض النتيجة النهائية.
 8. `backup.ts` يتولى نسخ حالة `data/` دورياً، و`doctor.ts` يتحقق من الجاهزية.
+9. الحوار الصوتي: `VoiceHud` → `POST /api/voice/converse` → `voice_dialogue.ts` يوجّه النية → `WorkOrderEngine` / `repo_ingest` / `healer` أو حوار عبر `local_synthesis` → `llama-bridge` → Piper WAV أو Web Speech، مع بث `voice` على SSE.
+10. التفريغ الصوتي: `POST /api/voice/transcribe` يستخدم Whisper/Vosk محلياً إن وُجد، وإلا `503 STT_NOT_CONFIGURED` — المتصفح يستخدم SpeechRecognition بدلاً منه.

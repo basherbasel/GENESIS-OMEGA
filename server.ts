@@ -83,6 +83,8 @@ import {
   type RepoIngestRun,
   type RepoIngestStore,
 } from './src/lib/enterprise/repo_ingest';
+import { processVoiceDialogue, type VoiceDialogueDeps } from './src/lib/voice/voice_dialogue';
+import { resolveOfflineStt, transcribeOfflineAudio } from './src/lib/voice/offline_stt';
 import {
   computeUnifiedDiffs,
   evaluateWithAtomicRollback,
@@ -1147,6 +1149,45 @@ async function startServer() {
     baseDir: __dirname,
     cacheDir: path.join(DATA_DIR, 'voice_cache'),
   });
+  const offlineSttConfig = resolveOfflineStt();
+
+  // v2 Phase 5: spoken intents execute the SAME real engines used by the REST
+  // API. Every event is pushed to SSE topic `voice` for the full-duplex HUD.
+  const voiceDialogueDeps: VoiceDialogueDeps = {
+    workOrders: {
+      create: (input) => {
+        const order = workOrderEngine.create({
+          title: input.title,
+          problemStatement: input.problemStatement,
+          targetLang: input.targetLang,
+        });
+        return { id: order.id, departmentIds: order.departmentIds };
+      },
+      run: async (id) => {
+        const finished = await workOrderEngine.run(id);
+        return { id: finished.id, stage: finished.stage, finalScore: finished.finalScore };
+      },
+      list: () => workOrderEngine.list().map((o) => ({ id: o.id, stage: o.stage, title: o.title })),
+    },
+    repo: {
+      audit: (repoPath) => ingestAndAuditLocalRepository(repoPath, repoIngestDeps),
+      evolve: (repoPath, mode, goal) =>
+        evolveAndHardenRepo({ repoPath, mode, goal, autoCommit: false }, repoIngestDeps),
+    },
+    healProject: async (projectId) => {
+      const project = store.projects.find((p) => p.id === projectId);
+      if (!project) throw new Error(`project ${projectId} not found`);
+      const report = await runProjectHealing(project, 3);
+      saveStore(store);
+      studioEvents.publish('state', { projects: store.projects.length, at: new Date().toISOString() });
+      return { attempts: report.attempts.length, finalScore: project.score };
+    },
+    doctorSummary: () =>
+      `Node ${process.version}; Ollama ${localModelStatus.online ? 'online' : 'offline'}; ` +
+      `${installedBrains.size} local models; ${piperTts.status().bilingual_ready ? 'bilingual Piper ready' : 'Piper partial'}`,
+    installedModels: installedBrains,
+    onEvent: (event) => studioEvents.publish('voice', event),
+  };
 
   // Secure, cache-friendly delivery of locally synthesized Piper WAV files.
   app.get('/api/voice/audio/:filename', (req, res) => {
@@ -1341,6 +1382,12 @@ code{background:#020617;padding:2px 6px;border-radius:4px;color:#38bdf8}</style>
         localFirst: process.env.OMEGA_LOCAL_FIRST === '1',
       },
       piper_tts: piperStatus,
+      voice: {
+        offline_stt_ready: Boolean(offlineSttConfig),
+        offline_stt_engine: offlineSttConfig?.engine || null,
+        bilingual_tts: Boolean(piperStatus.bilingual_ready),
+        piper: piperStatus,
+      },
       capabilities: {
         ttsModel: piperStatus.offline_neural_ready
           ? 'piper-offline-neural'
@@ -1348,7 +1395,7 @@ code{background:#020617;padding:2px 6px;border-radius:4px;color:#38bdf8}</style>
             ? geminiModel('tts')
             : 'web-speech-fallback',
         cognitiveModel: hasGemini ? geminiModel('flash') : 'deterministic-nlu',
-        transcribeModel: hasGemini ? geminiModel('transcribe') : 'web-speech-api',
+        transcribeModel: offlineSttConfig ? offlineSttConfig.engine : 'browser-speech-api',
         sbomSpec: 'CycloneDX 1.5',
         autonomousHealer: 'diagnose-patch-verify-accept',
       },
@@ -1414,6 +1461,7 @@ code{background:#020617;padding:2px 6px;border-radius:4px;color:#38bdf8}</style>
     const offJob = studioEvents.subscribe('job', forward);
     const offWorkOrder = studioEvents.subscribe('work_order', forward);
     const offIngest = studioEvents.subscribe('ingest', forward);
+    const offVoice = studioEvents.subscribe('voice', forward);
     const heartbeat = setInterval(() => {
       try {
         res.write(': ping\n\n');
@@ -1428,6 +1476,7 @@ code{background:#020617;padding:2px 6px;border-radius:4px;color:#38bdf8}</style>
       offJob();
       offWorkOrder();
       offIngest();
+      offVoice();
       clearInterval(heartbeat);
     });
   });
@@ -2585,37 +2634,92 @@ code{background:#020617;padding:2px 6px;border-radius:4px;color:#38bdf8}</style>
     }
   });
 
+  // v2 Phase 5: fully local offline STT. No cloud transcription fallback:
+  // missing configuration fails closed with STT_NOT_CONFIGURED (503).
   app.post('/api/voice/transcribe', async (req, res) => {
     const audioBase64 = typeof req.body?.audioBase64 === 'string' ? req.body.audioBase64.trim() : '';
     const mimeType = typeof req.body?.mimeType === 'string' ? req.body.mimeType.trim() : 'audio/webm';
+    const lang = req.body?.lang === 'ar' || req.body?.lang === 'en' ? req.body.lang : undefined;
     if (!audioBase64) {
-      res.status(400).json({ error: 'البيانات الصوتية المطلوب تفريغها فارغة.' });
+      res.status(400).json({ code: 'STT_BAD_PAYLOAD', error: 'البيانات الصوتية المطلوب تفريغها فارغة.' });
       return;
     }
-    const ai = getAiClient();
-    if (!ai) {
+    if (!offlineSttConfig) {
       res.status(503).json({
-        error: 'خدمة تفريغ الصوت الخادمي غير مفعلة حالياً بدون مفتاح Gemini.',
+        code: 'STT_NOT_CONFIGURED',
+        error: 'لا يوجد محرك تفريغ صوتي محلي مهيّأ. استخدم SpeechRecognition في المتصفح.',
       });
       return;
     }
     try {
-      const cleanB64 = audioBase64.includes(',') ? audioBase64.split(',').pop() || '' : audioBase64;
-      const response = await ai.models.generateContent({
-        model: geminiModel('transcribe'),
-        contents: {
-          parts: [
-            { inlineData: { mimeType, data: cleanB64 } },
-            { text: 'Transcribe this audio verbatim in its spoken language.' },
-          ],
-        },
-      });
-      const text = (response.text || '').trim();
-      res.json({ transcript: text });
+      const result = await transcribeOfflineAudio({ audioBase64, mimeType, lang }, offlineSttConfig);
+      res.json({ transcript: result.transcript, engine: result.engine });
     } catch (err) {
-      res.status(502).json({
-        error: err instanceof Error ? err.message : 'فشل تفريغ الملف الصوتي عبر Gemini.',
+      const code =
+        err instanceof Error && 'code' in err && typeof err.code === 'string' ? err.code : 'STT_FAILED';
+      res.status(code === 'STT_BAD_PAYLOAD' ? 400 : 422).json({
+        code,
+        error: err instanceof Error ? err.message : 'تعذر تفريغ الصوت محلياً.',
       });
+    }
+  });
+
+  // v2 Phase 5: bilingual conversational dialogue with real action execution.
+  app.post('/api/voice/converse', async (req, res) => {
+    const transcript = String(req.body?.transcript || '').trim();
+    if (!transcript) {
+      res.status(400).json({ code: 'EMPTY_TRANSCRIPT', error: 'النص الصوتي فارغ.' });
+      return;
+    }
+    const preferredLang =
+      req.body?.preferredLang === 'ar' || req.body?.preferredLang === 'en' ? req.body.preferredLang : 'auto';
+    const controller = new AbortController();
+    res.on('close', () => controller.abort());
+    try {
+      const dialogue = await processVoiceDialogue(
+        {
+          transcript,
+          preferredLang,
+          executeActions: req.body?.executeActions !== false,
+          signal: controller.signal,
+        },
+        voiceDialogueDeps,
+      );
+
+      let audioUrl: string | null = null;
+      let ttsEngine = 'web-speech';
+      const piperStatus = piperTts.status();
+      if (dialogue.replyText && piperStatus.offline_neural_ready) {
+        const wavPath = await piperTts.synthesizeWav(
+          dialogue.replyText,
+          { rate: 1.02, pitch: 1.0 },
+          dialogue.lang,
+        );
+        if (wavPath) {
+          audioUrl = toVoiceAudioUrl(wavPath);
+          ttsEngine = 'piper-neural-offline';
+        }
+      }
+
+      studioEvents.publish('voice', {
+        type: 'voice.converse',
+        lang: dialogue.lang,
+        intent: dialogue.intent,
+        actionExecuted: dialogue.actionExecuted,
+        at: new Date().toISOString(),
+      });
+
+      res.json({
+        ...dialogue,
+        audioUrl,
+        ttsEngine,
+        piper_tts: piperTts.status(),
+        at: new Date().toISOString(),
+      });
+    } catch (err) {
+      const code =
+        err instanceof Error && 'code' in err && typeof err.code === 'string' ? err.code : 'VOICE_FAILED';
+      res.status(422).json({ code, error: err instanceof Error ? err.message : 'تعذر معالجة الحوار الصوتي.' });
     }
   });
 

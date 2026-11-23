@@ -340,7 +340,10 @@ export interface NeuralTtsStatus {
   piper_binary_found: boolean;
   piper_binary: string;
   arabic_model_found: boolean;
+  english_model_found?: boolean;
   model_path: string;
+  model_path_en?: string;
+  bilingual_ready?: boolean;
   offline_neural_ready: boolean;
   cache_dir: string;
   last_error?: string;

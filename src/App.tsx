@@ -9,6 +9,7 @@ import { SolutionCatalogView } from './components/SolutionCatalogView';
 import { StudioView } from './components/StudioView';
 import { TopNav } from './components/TopNav';
 import { VaultView } from './components/VaultView';
+import { VoiceHud } from './components/VoiceHud';
 import { WatchView } from './components/WatchView';
 import type {
   AgentRole,
@@ -98,6 +99,8 @@ export default function App() {
   const handleAuthReady = useCallback(() => {
     void hydrateAll();
   }, [hydrateAll]);
+
+  const handleVoiceLanguageChange = useCallback((next: Language) => setLanguage(next), []);
 
   useEffect(() => {
     persistLanguage(language);
@@ -415,6 +418,12 @@ export default function App() {
           setActiveView('studio');
           setShowCreateForm(true);
         }}
+      />
+
+      <VoiceHud
+        language={language}
+        onLanguageChange={handleVoiceLanguageChange}
+        activeProjectId={activeProjectId}
       />
 
       <LiveWaveformHud

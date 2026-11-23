@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import type { NeuralTtsStatus, ProsodyConfig } from './types';
+import { sanitizeChildEnv } from './voice/voice_process';
 
 export type { NeuralTtsStatus } from './types';
 
@@ -13,6 +14,8 @@ export interface PiperCommandRequest {
   args: string[];
   input: string;
   timeoutMs: number;
+  /** Sanitized child environment; secret-shaped keys are removed by the engine. */
+  env?: NodeJS.ProcessEnv;
 }
 
 export interface PiperCommandResult {
@@ -33,11 +36,14 @@ export interface PiperNeuralVoiceEngineOptions {
 }
 
 const WAV_MIN_BYTES = 44;
+const WAV_MAX_BYTES = 16 * 1024 * 1024;
+const MAX_SPEECH_CHARS = 4000;
 const DEFAULT_TIMEOUT_MS = 20_000;
 const DEFAULT_MAX_CACHE_FILES = 300;
 const DISCOVERY_TTL_MS = 5_000;
 
 const ARABIC_MODEL_HINTS = ['arabic', 'kareem', 'salma', 'shakir'];
+const ENGLISH_MODEL_HINTS = ['english', 'amy', 'ryan', 'lessac', 'libritts', 'ljspeech'];
 const SKIP_DIR_NAMES = new Set([
   '.git',
   '.aistudio',
@@ -81,7 +87,7 @@ function isExecutableFile(candidate: string): boolean {
 function isUsableWav(filePath: string): boolean {
   try {
     const stat = fs.statSync(filePath);
-    if (!stat.isFile() || stat.size <= WAV_MIN_BYTES) return false;
+    if (!stat.isFile() || stat.size <= WAV_MIN_BYTES || stat.size > WAV_MAX_BYTES) return false;
     const fd = fs.openSync(filePath, 'r');
     try {
       const header = Buffer.alloc(4);
@@ -95,10 +101,14 @@ function isUsableWav(filePath: string): boolean {
   }
 }
 
-function looksLikeArabicModel(fileName: string): boolean {
+function looksLikeLanguageModel(fileName: string, lang: 'ar' | 'en'): boolean {
   const low = fileName.toLowerCase();
-  if (ARABIC_MODEL_HINTS.some((hint) => low.includes(hint))) return true;
-  return /(?:^|[._-])ar(?:[._-]|$)/i.test(fileName) || /(?:^|[._-])ara(?:[._-]|$)/i.test(fileName);
+  if (lang === 'ar') {
+    if (ARABIC_MODEL_HINTS.some((hint) => low.includes(hint))) return true;
+    return /(?:^|[._-])ar(?:[._-]|$)/i.test(fileName) || /(?:^|[._-])ara(?:[._-]|$)/i.test(fileName);
+  }
+  if (ENGLISH_MODEL_HINTS.some((hint) => low.includes(hint))) return true;
+  return /(?:^|[._-])en(?:[._-]|$)/i.test(fileName) || /(?:^|[._-])eng(?:[._-]|$)/i.test(fileName);
 }
 
 function dedupePaths(values: string[]): string[] {
@@ -148,6 +158,7 @@ export class PiperNeuralVoiceEngine {
 
   private piperBin = '';
   private modelPath = '';
+  private modelPathEn = '';
   private lastDiscoveryAt = 0;
   private lastError = '';
   private argStyle: ArgStyle | null = null;
@@ -169,7 +180,9 @@ export class PiperNeuralVoiceEngine {
     const now = Date.now();
     if (!force && this.lastDiscoveryAt > 0 && now - this.lastDiscoveryAt < DISCOVERY_TTL_MS) return;
     this.piperBin = this.discoverPiperBinary();
-    this.modelPath = this.discoverArabicModel();
+    const models = this.discoverModels();
+    this.modelPath = models.ar;
+    this.modelPathEn = models.en;
     this.lastDiscoveryAt = now;
   }
 
@@ -235,9 +248,11 @@ export class PiperNeuralVoiceEngine {
     }
   }
 
-  private discoverArabicModel(): string {
-    const envModel = (this.env.OMEGA_PIPER_MODEL || '').trim();
-    if (envModel && isFile(envModel)) return path.resolve(envModel);
+  private discoverModels(): { ar: string; en: string } {
+    const configuredAr = (this.env.OMEGA_PIPER_MODEL_AR || this.env.OMEGA_PIPER_MODEL || '').trim();
+    const configuredEn = (this.env.OMEGA_PIPER_MODEL_EN || '').trim();
+    const arOverride = configuredAr && isFile(configuredAr) ? path.resolve(configuredAr) : '';
+    const enOverride = configuredEn && isFile(configuredEn) ? path.resolve(configuredEn) : '';
 
     const onnxFiles: string[] = [];
     for (const root of this.searchRoots()) {
@@ -254,18 +269,32 @@ export class PiperNeuralVoiceEngine {
     }
 
     const uniqueFiles = Array.from(new Set(onnxFiles));
-    const arabic = uniqueFiles.find((file) => looksLikeArabicModel(path.basename(file)));
-    return arabic || uniqueFiles[0] || '';
+    const ar = arOverride || uniqueFiles.find((file) => looksLikeLanguageModel(path.basename(file), 'ar')) || uniqueFiles[0] || '';
+    const en =
+      enOverride ||
+      uniqueFiles.find((file) => file !== ar && looksLikeLanguageModel(path.basename(file), 'en')) ||
+      uniqueFiles.find((file) => file !== ar) ||
+      ar;
+    return { ar, en };
+  }
+
+  /** Match the requested language, with a deterministic fallback to the other voice. */
+  private modelFor(lang: 'ar' | 'en'): string {
+    if (lang === 'en') return this.modelPathEn || this.modelPath;
+    return this.modelPath || this.modelPathEn;
   }
 
   status(): NeuralTtsStatus {
     this.refreshDiscovery(false);
-    const ready = Boolean(this.piperBin && this.modelPath);
+    const ready = Boolean(this.piperBin && (this.modelPath || this.modelPathEn));
     return {
       piper_binary_found: Boolean(this.piperBin),
       piper_binary: this.piperBin,
       arabic_model_found: Boolean(this.modelPath),
-      model_path: this.modelPath,
+      english_model_found: Boolean(this.modelPathEn),
+      model_path: this.modelPath || this.modelPathEn,
+      model_path_en: this.modelPathEn,
+      bilingual_ready: Boolean(this.piperBin && this.modelPath && this.modelPathEn),
       offline_neural_ready: ready,
       cache_dir: this.cacheDir,
       ...(this.lastError ? { last_error: this.lastError } : {}),
@@ -288,19 +317,24 @@ export class PiperNeuralVoiceEngine {
     return Math.round(Math.max(0.72, Math.min(1.3, scale)) * 100) / 100;
   }
 
-  async synthesizeWav(text: string, prosody?: Partial<ProsodyConfig> | null): Promise<string | null> {
-    const spoken = PiperNeuralVoiceEngine.cleanForSpeech(text);
+  async synthesizeWav(
+    text: string,
+    prosody?: Partial<ProsodyConfig> | null,
+    lang: 'ar' | 'en' = 'ar',
+  ): Promise<string | null> {
+    const spoken = PiperNeuralVoiceEngine.cleanForSpeech(text).slice(0, MAX_SPEECH_CHARS);
     if (!spoken) return null;
 
-    if (!this.piperBin || !this.modelPath) {
+    if (!this.piperBin || (!this.modelPath && !this.modelPathEn)) {
       this.refreshDiscovery(true);
     }
-    if (!this.piperBin || !this.modelPath) return null;
+    const modelPath = this.modelFor(lang);
+    if (!this.piperBin || !modelPath) return null;
 
     const lengthScale = PiperNeuralVoiceEngine.rateToLengthScale(prosody?.rate ?? 1.02);
     const cacheKey = crypto
       .createHash('sha256')
-      .update(`${this.modelPath}|${lengthScale}|${spoken}`, 'utf8')
+      .update(`${lang}|${modelPath}|${lengthScale}|${spoken}`, 'utf8')
       .digest('hex')
       .slice(0, 20);
     const outWav = path.join(this.cacheDir, `piper_${cacheKey}.wav`);
@@ -310,7 +344,7 @@ export class PiperNeuralVoiceEngine {
     const running = this.inflight.get(outWav);
     if (running) return running;
 
-    const task = this.generateWav(spoken, lengthScale, outWav)
+    const task = this.generateWav(spoken, lengthScale, outWav, modelPath)
       .catch((err) => {
         this.lastError = err instanceof Error ? err.message : String(err);
         return null;
@@ -322,8 +356,8 @@ export class PiperNeuralVoiceEngine {
     return task;
   }
 
-  private attemptsForModel(): SynthesisAttempt[] {
-    const hasConfig = isFile(`${this.modelPath}.json`);
+  private attemptsForModel(modelPath: string): SynthesisAttempt[] {
+    const hasConfig = isFile(`${modelPath}.json`);
     const modern: SynthesisAttempt = {
       flag: '--length-scale',
       withConfig: false,
@@ -344,24 +378,29 @@ export class PiperNeuralVoiceEngine {
     return attempts;
   }
 
-  private async generateWav(spoken: string, lengthScale: number, outWav: string): Promise<string | null> {
+  private async generateWav(
+    spoken: string,
+    lengthScale: number,
+    outWav: string,
+    modelPath: string,
+  ): Promise<string | null> {
     const tempWav = path.join(
       this.cacheDir,
       `.${path.basename(outWav, '.wav')}.${process.pid}.${Date.now()}.tmp.wav`,
     );
 
     let lastFailure = '';
-    for (const attempt of this.attemptsForModel()) {
+    for (const attempt of this.attemptsForModel(modelPath)) {
       const args = [
         '--model',
-        this.modelPath,
+        modelPath,
         attempt.flag,
         String(lengthScale),
         '--output_file',
         tempWav,
       ];
       if (attempt.withConfig) {
-        args.push('--config', `${this.modelPath}.json`);
+        args.push('--config', `${modelPath}.json`);
       }
 
       try {
@@ -370,6 +409,7 @@ export class PiperNeuralVoiceEngine {
           args,
           input: spoken,
           timeoutMs: this.timeoutMs,
+          env: sanitizeChildEnv(this.env),
         });
         if (result.code === 0 && isUsableWav(tempWav)) {
           this.argStyle = attempt.style;
@@ -465,6 +505,7 @@ export function runPiperCommand(request: PiperCommandRequest): Promise<PiperComm
         windowsHide: true,
         windowsVerbatimArguments: isWindowsShim,
         stdio: ['pipe', 'ignore', 'pipe'],
+        env: request.env || sanitizeChildEnv(process.env),
       });
     } catch (err) {
       resolve({ code: -1, stderr: err instanceof Error ? err.message : String(err) });
