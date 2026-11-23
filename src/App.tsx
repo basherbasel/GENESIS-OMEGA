@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AuthGate } from './components/AuthGate';
 import { DashboardView } from './components/DashboardView';
+import { persistLanguage, readStoredLanguage, type Language } from './lib/i18n';
 import { LiveWaveformHud } from './components/LiveWaveformHud';
 import { MigrationView } from './components/MigrationView';
 import { SolutionCatalogView } from './components/SolutionCatalogView';
@@ -26,6 +27,7 @@ import type { ModelOption } from './lib/routing';
 
 export default function App() {
   const [activeView, setActiveView] = useState<TopView>('studio');
+  const [language, setLanguage] = useState<Language>(() => readStoredLanguage());
   const [projects, setProjects] = useState<ProjectRecord[]>([]);
   const [activeProjectId, setActiveProjectId] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<DetailTab>('logs');
@@ -95,6 +97,12 @@ export default function App() {
   const handleAuthReady = useCallback(() => {
     void hydrateAll();
   }, [hydrateAll]);
+
+  useEffect(() => {
+    persistLanguage(language);
+    document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
+    document.documentElement.lang = language;
+  }, [language]);
 
   // Live push: the server publishes a `state` event on every store write.
   // hydrateAll remains the single source of truth for refreshing the UI, but
@@ -396,10 +404,12 @@ export default function App() {
 
   return (
     <AuthGate onReady={handleAuthReady}>
-      <div dir="rtl" className="min-h-screen bg-slate-950 text-slate-100">
+      <div dir={language === 'ar' ? 'rtl' : 'ltr'} className="min-h-screen bg-slate-950 text-slate-100">
       <TopNav
         activeView={activeView}
         onSelectView={setActiveView}
+        language={language}
+        onToggleLanguage={() => setLanguage((prev) => (prev === 'ar' ? 'en' : 'ar'))}
         onNewProjectClick={() => {
           setActiveView('studio');
           setShowCreateForm(true);
@@ -461,7 +471,7 @@ export default function App() {
           onDeleteWatch={handleDeleteWatch}
         />
       ) : activeView === 'dashboard' ? (
-        <DashboardView projects={projects} governor={governor} activeRouting={activeRouting} />
+        <DashboardView projects={projects} governor={governor} activeRouting={activeRouting} language={language} />
       ) : activeView === 'vault' ? (
         <VaultView
           projects={projects}

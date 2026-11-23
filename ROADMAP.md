@@ -144,7 +144,8 @@ npm run lint && npm test
 - [x] تصدير PDF عبر `@media print` + زر `window.print()` في `report/html`، ورابط «حفظ PDF» بـ `?print=1`.
   - دليل حي: `has_print_button=True`, `has_media_print=True`, `has_title=True`.
   - حد صريح: PDF يولّده محرك طباعة المتصفح، لا مولّد PDF أصلي — انظر `LIMITATIONS.md`.
-- [ ] مفتاح لغة إنجليزية للواجهة — مؤجل حتى يُطلب صراحةً.
+- [x] مفتاح لغة عربي/إنجليزي عبر `i18n.ts` + زر في `TopNav` + حفظ في `localStorage`.
+  - دليل E2E: التبديل إلى `Production line` ثم `Dashboard` ثم العودة إلى `خط الإنتاج`، و`dir=ltr` أثناء الإنجليزية.
 - [x] اختبار Playwright E2E — `e2e/studio.spec.ts` + `playwright.config.ts`، 5/5 ناجح على chromium.
 
 ---
@@ -249,8 +250,8 @@ npm run lint && npm test
 | 4أ — اللوحة | ✅ | `DashboardView` بـ CSS خالص من `dashboard_metrics.ts` |
 | 4ب — PDF | ✅ | `@media print` + `window.print()` + رابط `?print=1` |
 | 5 — ربط الجسر المحلي | ✅ | `local_synthesis.ts`، `engine=ollama-local` حياً، `ai_pipeline.ts` لم يُلمس |
-| 4ج — E2E | ✅ | 5 اختبارات Playwright حقيقية (`npm run test:e2e`) |
-| 4د — لغة إنجليزية | ⬜ | مؤجلة لأنها لم تُطلب |
+| 4ج — E2E | ✅ | 6 اختبارات Playwright حقيقية (`npm run test:e2e`) |
+| 4د — لغة إنجليزية | ✅ | `i18n.ts` + زر تبديل + اختبار E2E |
 
 ### 14.2 خريطة الملفات (102 ملف متتبع)
 
@@ -292,7 +293,7 @@ npm run restore -- <dir> --yes → RESTORE_OK
 
 - عزل الشبكة/الملفات داخل الـ Job (دورة الحياة فقط).
 - مولّد PDF أصلي (الطباعة تتم في المتصفح).
-- واجهة إنجليزية فقط (لم تُطلب)؛ Playwright وربط `llama-bridge` أُنجزا بالفعل.
+- لا شيء من بنود الخارطة متبقٍ؛ المؤجلات خارج الخارطة موثّقة في `BACKLOG.md` و`DECISIONS.md`.
 - Docker و24 نطاقاً ونشر سحابي (قرار `DECISIONS.md`).
 - إثبات تسليم خارجي (`PROOF.md` فارغ من التسليم).
 

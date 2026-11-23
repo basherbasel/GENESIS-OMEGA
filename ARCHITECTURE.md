@@ -31,7 +31,7 @@ genesis-omega/
 ├── models.config.json         إعداد Ollama المحلي (النماذج والأدوار).
 ├── public/assets/aistudio/    أصول واجهة المنصة الأصلية.
 ├── playwright.config.ts       إعداد Playwright: webServer + chromium + baseURL.
-├── e2e/studio.spec.ts         5 اختبارات E2E حقيقية (تنقل/لوحة/نموذج/SSE/PDF).
+├── e2e/studio.spec.ts         6 اختبارات E2E حقيقية (تنقل/لغة/لوحة/نموذج/SSE/PDF).
 └── .github/workflows/ci.yml   install + lint + test + doctor --ci + build.
 ```
 
@@ -71,8 +71,9 @@ genesis-omega/
 | store_schema.ts | مخطط Zod يمنع تحميل متجر تالف قبل استخدام حقوله. |
 | verifier.ts | يشغّل اختبارات نظام التشغيل الفعلية ويمنع أرقاماً مُختلقة. |
 | watcher.ts | يراقب المجلدات ويقارن SHA-256 ويُطلق تدقيقاً عند التغيير. |
-| `*.test.ts` | 23 ملف اختبار تغطي 98 حالة (آخر تشغيل: 98 ناجح، 0 فاشل). |
-| `playwright.config.ts` + `e2e/studio.spec.ts` | 5 اختبارات متصفح E2E منفصلة عن `npm test`. |
+| `i18n.ts` | قاموس عربي/إنجليزي لنصوص الواجهة الثابتة مع حفظ اللغة محلياً. |
+| `*.test.ts` | 24 ملف اختبار تغطي 101 حالة (آخر تشغيل: 101 ناجح، 0 فاشل). |
+| `playwright.config.ts` + `e2e/studio.spec.ts` | 6 اختبارات متصفح E2E منفصلة عن `npm test`. |
 
 ## مكوّنات الواجهة
 

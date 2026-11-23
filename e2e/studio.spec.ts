@@ -8,6 +8,20 @@ test('واجهة الاستوديو تحمل وتعرض التنقل الأسا�
   await expect(page.getByRole('button', { name: 'مشروع جديد' })).toBeVisible();
 });
 
+test('مفتاح اللغة يبدل التنقل واللوحة إلى الإنجليزية ثم يعود', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByRole('button', { name: 'خط الإنتاج' })).toBeVisible();
+  await page.getByRole('button', { name: 'English' }).click();
+  await expect(page.getByRole('button', { name: 'Production line' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'New project' })).toBeVisible();
+  await page.getByRole('button', { name: 'Dashboard', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
+  await expect(page.getByText('Every figure comes from real state', { exact: false })).toBeVisible();
+  await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
+  await page.getByRole('button', { name: 'العربية' }).click();
+  await expect(page.getByRole('button', { name: 'خط الإنتاج' })).toBeVisible();
+});
+
 test('لوحة القياسات تعرض عدد المشاريع القادم من API الحقيقي', async ({ page, request }) => {
   const status = await (await request.get('/api/status')).json();
   await page.goto('/');

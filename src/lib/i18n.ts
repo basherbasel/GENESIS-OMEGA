@@ -1,0 +1,98 @@
+/**
+ * Minimal typed UI localization for the studio shell.
+ *
+ * Only static interface strings are translated. Project titles, AI-generated
+ * reports and verifier output are data and stay in their original language.
+ * Time/space: O(1) lookup per string, no runtime dependency.
+ */
+
+export type Language = 'ar' | 'en';
+
+export interface TranslationEntry {
+  ar: string;
+  en: string;
+}
+
+export const TRANSLATIONS = {
+  'nav.main': { ar: 'التنقل الرئيسي', en: 'Main navigation' },
+  'nav.studio': { ar: 'خط الإنتاج', en: 'Production line' },
+  'nav.solutions': { ar: 'كتالوج الحلول', en: 'Solution catalog' },
+  'nav.watch': { ar: 'مراقبة المجلدات', en: 'Folder watch' },
+  'nav.vault': { ar: 'الإحصائيات والخبرات', en: 'Statistics & knowledge' },
+  'nav.dashboard': { ar: 'لوحة القياسات', en: 'Dashboard' },
+  'nav.migration': { ar: 'هجرة الأنظمة', en: 'Legacy migration' },
+  'action.newProject': { ar: 'مشروع جديد', en: 'New project' },
+  'lang.toggle': { ar: 'English', en: 'العربية' },
+  'lang.aria': { ar: 'تغيير لغة الواجهة', en: 'Switch interface language' },
+
+  'dash.title': { ar: 'لوحة القياسات', en: 'Dashboard' },
+  'dash.subtitle': {
+    ar: 'كل الأرقام مشتقة من الحالة الحقيقية في المتجر — لا قيم مُقدَّرة ولا إحصاءات مُختلقة.',
+    en: 'Every figure comes from real state in the store — no estimates and no fabricated statistics.',
+  },
+  'dash.aria': { ar: 'مؤشرات أساسية', en: 'Key indicators' },
+  'dash.projects': { ar: 'المشاريع', en: 'Projects' },
+  'dash.projectsHint': { ar: 'المخزون الكلي', en: 'Total in store' },
+  'dash.verified': { ar: 'مُتحقّق', en: 'Verified' },
+  'dash.reviewHint': { ar: 'يحتاج مراجعة: {n}', en: 'Needs review: {n}' },
+  'dash.avgScore': { ar: 'متوسط الجودة', en: 'Average score' },
+  'dash.tests': { ar: 'الاختبارات المنفذة', en: 'Tests executed' },
+  'dash.testsHint': { ar: 'عدّها المتحقق فعلياً', en: 'Counted by the real verifier' },
+  'dash.redTeam': { ar: 'صامد Red-Team', en: 'Red-Team survived' },
+  'dash.maxRps': { ar: 'أقصى RPS', en: 'Peak RPS' },
+  'dash.rpsHint': { ar: 'قياس HTTP حقيقي', en: 'Real HTTP measurement' },
+  'dash.scores': { ar: 'درجات المشاريع', en: 'Project scores' },
+  'dash.noProjects': { ar: 'لا توجد مشاريع بعد.', en: 'No projects yet.' },
+  'dash.host': { ar: 'حالة المضيف والتوجيه', en: 'Host & routing state' },
+  'dash.os': { ar: 'النظام', en: 'OS' },
+  'dash.cores': { ar: 'الأنوية', en: 'CPU cores' },
+  'dash.memory': { ar: 'الذاكرة المتاحة', en: 'Available memory' },
+  'dash.profile': { ar: 'الملف المعرفي', en: 'Governor profile' },
+  'dash.architect': { ar: 'المعماري', en: 'Architect' },
+  'dash.builder': { ar: 'البنّاء', en: 'Builder' },
+  'dash.ecosystems': { ar: 'توزيع البيئات', en: 'Ecosystem distribution' },
+  'dash.noData': { ar: 'لا بيانات', en: 'No data' },
+  'dash.benchmark': { ar: 'القياس الحقيقي', en: 'Real benchmark' },
+  'dash.noBenchmark': { ar: 'لم يُقَس أي أداء بعد.', en: 'No performance measured yet.' },
+  'dash.healing': { ar: 'الإصلاح الذاتي', en: 'Self-healing' },
+  'dash.noHealing': { ar: 'لا دورات إصلاح مسجّلة.', en: 'No healing cycles recorded.' },
+  'dash.patches': { ar: 'ترقيع', en: 'patches' },
+} satisfies Record<string, TranslationEntry>;
+
+export type TranslationKey = keyof typeof TRANSLATIONS;
+
+export const ALL_TRANSLATION_KEYS = Object.keys(TRANSLATIONS) as TranslationKey[];
+
+/** Translate a static key; missing keys fall back to the key itself. */
+export function t(lang: Language, key: TranslationKey, vars?: Record<string, string | number>): string {
+  const entry = TRANSLATIONS[key] as TranslationEntry | undefined;
+  if (!entry) return key;
+  let value = entry[lang];
+  for (const [name, replacement] of Object.entries(vars || {})) {
+    value = value.replaceAll(`{${name}}`, String(replacement));
+  }
+  return value;
+}
+
+export function isLanguage(value: unknown): value is Language {
+  return value === 'ar' || value === 'en';
+}
+
+const STORAGE_KEY = 'omega.language';
+
+export function readStoredLanguage(): Language {
+  try {
+    const raw = globalThis.localStorage?.getItem(STORAGE_KEY);
+    return isLanguage(raw) ? raw : 'ar';
+  } catch {
+    return 'ar';
+  }
+}
+
+export function persistLanguage(language: Language): void {
+  try {
+    globalThis.localStorage?.setItem(STORAGE_KEY, language);
+  } catch {
+    // Storage may be unavailable (private mode); language still works in memory.
+  }
+}

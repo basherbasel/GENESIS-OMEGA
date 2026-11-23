@@ -1,26 +1,31 @@
 import React from 'react';
 import { Plus } from 'lucide-react';
+import { t, type Language, type TranslationKey } from '../lib/i18n';
 import type { TopView } from '../lib/types';
 
 interface TopNavProps {
   activeView: TopView;
   onSelectView: (view: TopView) => void;
   onNewProjectClick: () => void;
+  language: Language;
+  onToggleLanguage: () => void;
 }
 
-const NAV_ITEMS: Array<{ id: TopView; label: string }> = [
-  { id: 'studio', label: 'خط الإنتاج' },
-  { id: 'solutions', label: 'كتالوج الحلول' },
-  { id: 'watch', label: 'مراقبة المجلدات' },
-  { id: 'vault', label: 'الإحصائيات والخبرات' },
-  { id: 'dashboard', label: 'لوحة القياسات' },
-  { id: 'migration', label: 'هجرة الأنظمة' },
+const NAV_ITEMS: Array<{ id: TopView; key: TranslationKey }> = [
+  { id: 'studio', key: 'nav.studio' },
+  { id: 'solutions', key: 'nav.solutions' },
+  { id: 'watch', key: 'nav.watch' },
+  { id: 'vault', key: 'nav.vault' },
+  { id: 'dashboard', key: 'nav.dashboard' },
+  { id: 'migration', key: 'nav.migration' },
 ];
 
 export const TopNav: React.FC<TopNavProps> = ({
   activeView,
   onSelectView,
   onNewProjectClick,
+  language,
+  onToggleLanguage,
 }) => {
   return (
     <header className="md:sticky md:top-0 z-30 border-b border-slate-800 bg-slate-950/95 backdrop-blur-sm">
@@ -40,7 +45,7 @@ export const TopNav: React.FC<TopNavProps> = ({
 
         {/* Zone 2: Concise single-line navigation links */}
         <nav
-          aria-label="التنقل الرئيسي"
+          aria-label={t(language, 'nav.main')}
           className="order-3 md:order-none w-full md:w-auto flex items-center justify-between md:justify-start gap-2 sm:gap-4 md:gap-6 text-xs sm:text-sm font-medium border-t border-slate-900 pt-2 md:border-0 md:pt-0"
         >
           {NAV_ITEMS.map((item) => {
@@ -57,21 +62,28 @@ export const TopNav: React.FC<TopNavProps> = ({
                     : 'text-slate-400 hover:text-slate-100 border-b-2 border-transparent'
                 }`}
               >
-                {item.label}
+                {t(language, item.key)}
               </button>
             );
           })}
         </nav>
 
-        {/* Zone 3: Single Primary Action */}
-        <div className="shrink-0">
+        {/* Zone 3: Language toggle + primary action */}
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={onToggleLanguage}
+            className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-semibold text-slate-200 hover:border-cyan-400 whitespace-nowrap cursor-pointer"
+          >
+            {t(language, 'lang.toggle')}
+          </button>
           <button
             type="button"
             onClick={onNewProjectClick}
             className="inline-flex items-center gap-1.5 rounded-lg bg-cyan-500 px-4 py-2 text-xs font-semibold text-slate-950 transition-colors hover:bg-cyan-400 whitespace-nowrap shrink-0 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-300"
           >
             <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-            <span>مشروع جديد</span>
+            <span>{t(language, 'action.newProject')}</span>
           </button>
         </div>
       </div>

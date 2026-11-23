@@ -5,10 +5,10 @@
 ## طريقة الجرد
 
 ```
-git ls-files | Measure-Object -Line          → 106 ملفاً متتبعاً (بعد هذا الالتزام)
-Get-ChildItem src/lib/*.test.ts              → 23 ملف اختبار
-npm test                                     → 98 pass / 0 fail / 0 skipped
-npm run test:e2e                             → 5 pass / 0 fail (Playwright chromium)
+git ls-files | Measure-Object -Line          → 108 ملفاً متتبعاً (بعد هذا الالتزام)
+Get-ChildItem src/lib/*.test.ts              → 24 ملف اختبار
+npm test                                     → 101 pass / 0 fail / 0 skipped
+npm run test:e2e                             → 6 pass / 0 fail (Playwright chromium)
 npm run check                                → critical 9/9 · exit 0
 ```
 
@@ -17,14 +17,14 @@ npm run check                                → critical 9/9 · exit 0
 | المجلد | عدد الملفات | المحتوى |
 |---|---|---|
 | `(root)` | 25 | `server.ts`، إعدادات الحزمة، 15 ملف توثيق (منها `INVENTORY.md`)، `.gitignore`، `.env.example`، `models.config.json`، `package-lock.json`. |
-| `src` | 71 | `App.tsx`، `main.tsx`، `index.css`، 10 مكوّنات، وحدات `lib`، 23 ملف اختبار (ضمن الـ 71). |
+| `src` | 73 | `App.tsx`، `main.tsx`، `index.css`، 10 مكوّنات، وحدات `lib`، 24 ملف اختبار (ضمن الـ 73). |
 | `scripts` | 5 | `backup.ts`, `restore.ts`, `doctor.ts`, `check-secrets.ts`, `windows_job_sandbox.ps1`. |
 | `.github` | 1 | `workflows/ci.yml`. |
-| `e2e` | 1 | `studio.spec.ts` — 5 اختبارات متصفح حقيقية عبر Playwright. |
+| `e2e` | 1 | `studio.spec.ts` — 6 اختبارات متصفح حقيقية عبر Playwright. |
 | `(root)` | — | `playwright.config.ts` لإعداد المتصفح والخادم. |
 | `public` | 2 | أصول المنصة الأصلية. |
 
-## سجل الاختبارات (23 ملفاً / 98 اختباراً)
+## سجل الاختبارات (24 ملفاً / 101 اختباراً)
 
 | الملف | عدد الحالات | ما يغطيه |
 |---|---|---|
@@ -38,6 +38,7 @@ npm run check                                → critical 9/9 · exit 0
 | `healer.test.ts` | 5 | تشخيص ورقع وتحقق ورفض تحسين غير مُقاس. |
 | `job_queue.test.ts` | 3 | تسلسل المهام، فشل معزول، أحداث الحالة. |
 | `integrity.test.ts` | 5 | SHA-256 وحارس المسارات وتسريب المتغيرات. |
+| `i18n.test.ts` | 3 | اكتمال الترجمات، التبديل والتنسيق، رفض لغة غير معروفة. |
 | `llama-bridge.test.ts` | 4 | mutex، timeout 100ms، MODEL_NOT_FOUND، ABORTED. |
 | `local_models.test.ts` | 6 | كتالوج 34 نموذجاً، توجيه محلي، عميل Ollama، معرّفات Gemini. |
 | `local_synthesis.test.ts` | 3 | توليد عبر الجسر، رفض المسارات، فشل مغلق بلا سحابة. |
@@ -56,8 +57,8 @@ npm run check                                → critical 9/9 · exit 0
 
 ```
 npm run lint         → tsc --noEmit
-npm test             → 98/98
-npm run test:e2e     → 5/5 (Playwright)
+npm test             → 101/101
+npm run test:e2e     → 6/6 (Playwright)
 npm run check:secrets→ SECRETS_OK findings=0
 npm run doctor       → critical 9/9
 npm run doctor -- --ci → critical 4/4 · 5 skipped (مُعلن)
