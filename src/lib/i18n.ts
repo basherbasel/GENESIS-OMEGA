@@ -21,6 +21,7 @@ export const TRANSLATIONS = {
   'nav.vault': { ar: 'الإحصائيات والخبرات', en: 'Statistics & knowledge' },
   'nav.dashboard': { ar: 'لوحة القياسات', en: 'Dashboard' },
   'nav.migration': { ar: 'هجرة الأنظمة', en: 'Legacy migration' },
+  'nav.enterprise': { ar: 'أوامر الشركة', en: 'Work Orders' },
   'action.newProject': { ar: 'مشروع جديد', en: 'New project' },
   'lang.toggle': { ar: 'English', en: 'العربية' },
   'lang.aria': { ar: 'تغيير لغة الواجهة', en: 'Switch interface language' },
@@ -57,6 +58,28 @@ export const TRANSLATIONS = {
   'dash.healing': { ar: 'الإصلاح الذاتي', en: 'Self-healing' },
   'dash.noHealing': { ar: 'لا دورات إصلاح مسجّلة.', en: 'No healing cycles recorded.' },
   'dash.patches': { ar: 'ترقيع', en: 'patches' },
+
+  'ent.title': { ar: 'أوامر العمل الهندسية', en: 'Engineering Work Orders' },
+  'ent.subtitle': {
+    ar: 'شركة برمجيات محلية: أقسام متخصصة، عقول Ollama، تحقق OS حقيقي، وفشل مغلق صريح.',
+    en: 'A local software house: specialized departments, Ollama brains, real OS verification and explicit fail-closed states.',
+  },
+  'ent.departments': { ar: 'الأقسام العشرة', en: 'Ten departments' },
+  'ent.workOrders': { ar: 'أوامر العمل', en: 'Work orders' },
+  'ent.newOrder': { ar: 'أمر عمل جديد', en: 'New work order' },
+  'ent.titleField': { ar: 'عنوان أمر العمل', en: 'Work order title' },
+  'ent.problemField': { ar: 'المشكلة أو المتطلب الهندسي', en: 'Problem or engineering requirement' },
+  'ent.targetLang': { ar: 'اللغة المستهدفة (اختياري)', en: 'Target language (optional)' },
+  'ent.create': { ar: 'إنشاء وتشغيل', en: 'Create & run' },
+  'ent.run': { ar: 'تشغيل', en: 'Run' },
+  'ent.stage': { ar: 'المرحلة', en: 'Stage' },
+  'ent.score': { ar: 'الدرجة', en: 'Score' },
+  'ent.tests': { ar: 'الاختبارات', en: 'Tests' },
+  'ent.error': { ar: 'خطأ', en: 'Error' },
+  'ent.noOrders': { ar: 'لا توجد أوامر عمل بعد.', en: 'No work orders yet.' },
+  'ent.activeDeps': { ar: 'الأقسام النشطة', en: 'Active departments' },
+  'ent.contracts': { ar: 'القواعد الهندسية', en: 'Engineering contracts' },
+  'ent.gates': { ar: 'بوابات التحقق', en: 'Verification gates' },
 } satisfies Record<string, TranslationEntry>;
 
 export type TranslationKey = keyof typeof TRANSLATIONS;

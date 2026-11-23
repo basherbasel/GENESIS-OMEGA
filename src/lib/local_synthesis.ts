@@ -17,6 +17,9 @@ export interface LocalSynthesisParams {
   routing: ModelRoutingConfig;
   vault: VaultEntry[];
   governor?: GovernorStats;
+  /** Deterministic brain-profile sampling bounds forwarded to the bridge. */
+  numCtx?: number;
+  numPredict?: number;
   /** Injectable for tests; defaults to the real guarded bridge. */
   generateFn?: typeof generate;
 }
@@ -74,6 +77,8 @@ export async function synthesizeWithBridge(params: LocalSynthesisParams): Promis
       system: SYSTEM,
       prompt: buildPrompt(params),
       jsonMode: true,
+      numCtx: params.numCtx,
+      numPredict: params.numPredict,
       timeoutMs: 60_000,
     });
   } catch (err) {

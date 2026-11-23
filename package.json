@@ -11,7 +11,7 @@
     "start": "node server.ts",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "tsx --test src/lib/*.test.ts src/lib/brains/*.test.ts",
+    "test": "tsx --test src/lib/*.test.ts src/lib/brains/*.test.ts src/lib/enterprise/*.test.ts",
     "test:piper": "tsx --test src/lib/piper_tts.test.ts",
     "test:omega": "tsx --test src/lib/omega.test.ts",
     "test:healer": "tsx --test src/lib/healer.test.ts",

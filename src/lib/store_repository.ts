@@ -63,6 +63,15 @@ export class StoreRepository {
     `);
   }
 
+  /** Public meta access for auxiliary persisted records (e.g. work orders). */
+  getMetaValue(key: string): string | null {
+    return this.getMeta(key);
+  }
+
+  setMetaValue(key: string, value: string): void {
+    this.setMeta(key, value);
+  }
+
   /** Actual journal mode reported by SQLite — used by tests and doctor. */
   journalMode(): string {
     return String((this.db.prepare('PRAGMA journal_mode;').get() as { journal_mode?: string })?.journal_mode || '');

@@ -17,6 +17,7 @@ const NAV_ITEMS: Array<{ id: TopView; key: TranslationKey }> = [
   { id: 'watch', key: 'nav.watch' },
   { id: 'vault', key: 'nav.vault' },
   { id: 'dashboard', key: 'nav.dashboard' },
+  { id: 'enterprise', key: 'nav.enterprise' },
   { id: 'migration', key: 'nav.migration' },
 ];
 

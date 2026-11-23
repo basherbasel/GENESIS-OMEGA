@@ -304,7 +304,7 @@ npm run restore -- <dir> --yes → RESTORE_OK
 | المرحلة | الحالة | الوحدات |
 |---|---|---|
 | **1 — العقول المحلية وفهرس المستودعات** | ✅ منجزة | `brains/brain_registry.ts` · `brains/repo_indexer.ts` · `brains/surgical_patcher.ts` + 4 اختبارات |
-| 2 — محرك الشركة والأقسام العشرة | ⬜ | `enterprise/departments.ts` · `enterprise/work_order_engine.ts` |
+| **2 — محرك الشركة والأقسام العشرة** | ✅ منجزة | `enterprise/departments.ts` · `enterprise/work_order_engine.ts` · `EnterpriseView.tsx` + 4 اختبارات |
 | 3 — صيانة المشاريع القائمة | ⬜ | `enterprise/repo_ingest.ts` + توسيع `healer.ts` |
 | 4 — الجاهزية مفتوحة المصدر | ⬜ | `LICENSE` · `CONTRIBUTING.md` · `scripts/bootstrap.ps1/.sh` |
 
@@ -314,7 +314,14 @@ npm run restore -- <dir> --yes → RESTORE_OK
 - ترقيع جراحي `SEARCH/REPLACE` بحماية مسارات، تفريق حالة غموض، تحقق JSON/أقواس، وتراجع ذري للدفعة كاملة.
 - اختبار يقرأ ملفات الوحدات الثلاثة ويؤكد خلوّها من أي client سحابي.
 
-**التالي:** المرحلة 2 — محرك الأقسام العشرة وآلة حالة أوامر العمل مع بث SSE.
+**ما أُنجز فعلياً في المرحلة 2:**
+- 10 أقسام هندسية بعقود وبوابات تحقق صارمة وتصنيف حتمي (كلمات مفتاحية موزونة + مطابقة رموز كاملة لمنع `ui` من مطابقة `fluid`)، وربط كل قسم بدور عقل محلي.
+- آلة حالة persisted لـ أوامر العمل: `BACKLOG → SPEC_BLUEPRINT → IMPLEMENTATION → OS_VERIFICATION → SECURITY_AUDIT → SELF_HEALING → VERIFIED_COMMIT` مع `FAILED_CLOSED` يسجّل رمز الخطأ والمرحلة.
+- كل انتقال يُحفظ في SQLite (meta key `workOrders`) ويُبث عبر موضوع `work_order` على `/api/events`؛ المسارات: `GET/POST /api/enterprise/work-orders` و`GET /api/enterprise/work-orders/:id` و`POST .../:id/run` و`GET /api/enterprise/departments`.
+- التحقق من مسار الكتابة داخل مساحة العمل (`isSafeRelativePath` + فحص الانزلاق)، وفحص أسرار حقيقي `scanSecretsAndSecurity`، ودورة شفاء حقيقية عبر `healProject` ثم إعادة تحقق — بلا أي fallback سحابي.
+- 4 اختبارات: دقة التصنيف، تقدم كامل بتحقق OS حقيقي (`node --check`)، فشل مغلق لخطأ الجسر (`MODEL_NOT_FOUND`)، ورفض مسار `../` قبل أي كتابة. E2E أصبح 8/8.
+
+**التالي:** المرحلة 3 — امتداد `repo_ingest.ts` وتوسيع `healer.ts` لصيانة المشاريع القائمة.
 
 **التوقيع:** المهندس بشار — owner & executor
 **آخر تحديث:** 23 نوفمبر 2026

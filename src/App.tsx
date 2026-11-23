@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AuthGate } from './components/AuthGate';
 import { DashboardView } from './components/DashboardView';
+import { EnterpriseView } from './components/EnterpriseView';
 import { persistLanguage, readStoredLanguage, type Language } from './lib/i18n';
 import { LiveWaveformHud } from './components/LiveWaveformHud';
 import { MigrationView } from './components/MigrationView';
@@ -472,6 +473,8 @@ export default function App() {
         />
       ) : activeView === 'dashboard' ? (
         <DashboardView projects={projects} governor={governor} activeRouting={activeRouting} language={language} />
+      ) : activeView === 'enterprise' ? (
+        <EnterpriseView language={language} />
       ) : activeView === 'vault' ? (
         <VaultView
           projects={projects}

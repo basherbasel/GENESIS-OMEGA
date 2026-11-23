@@ -71,6 +71,51 @@ test('SSE يبث حدث state عند كتابة فعلية في المتجر', a
   await page.evaluate(() => (window as SseWindow).__sse?.close());
 });
 
+test('واجهة أوامر الشركة تعرض الأقسام العشرة', async ({ page, request }) => {
+  const response = await request.get('/api/enterprise/departments');
+  expect(response.ok()).toBeTruthy();
+  const body = await response.json();
+  expect(body.departments).toHaveLength(10);
+  expect(body.departments[0]).toHaveProperty('verificationGates');
+  await page.goto('/');
+  await page.getByRole('button', { name: 'أوامر الشركة' }).click();
+  await expect(page.getByRole('heading', { name: 'أوامر العمل الهندسية' })).toBeVisible();
+  await expect(page.getByText('الأقسام العشرة')).toBeVisible();
+});
+
+test('سجل أوامر العمل ينشئ أمراً ويبث انتقاله عبر SSE', async ({ page, request }) => {
+  await page.goto('/');
+  type WoWindow = Window & { __wo?: EventSource; __woEvents?: string[] };
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve, reject) => {
+        const w = window as WoWindow;
+        w.__woEvents = [];
+        const source = new EventSource('/api/events');
+        w.__wo = source;
+        const timer = setTimeout(() => reject(new Error('SSE ready timeout')), 10_000);
+        source.addEventListener('ready', () => {
+          clearTimeout(timer);
+          resolve();
+        });
+        source.addEventListener('work_order', () => w.__woEvents?.push('work_order'));
+      }),
+  );
+  const created = await request.post('/api/enterprise/work-orders', {
+    data: { title: 'E2E order', problemStatement: 'typed web API with SQLite and real tests' },
+  });
+  expect(created.ok()).toBeTruthy();
+  const order = (await created.json()).workOrder;
+  expect(order.stage).toBe('BACKLOG');
+  expect(order.departmentIds.length).toBeGreaterThan(0);
+  await expect
+    .poll(() => page.evaluate(() => (window as WoWindow).__woEvents?.length || 0), { timeout: 10_000 })
+    .toBeGreaterThan(0);
+  await page.evaluate(() => (window as WoWindow).__wo?.close());
+  const fetched = await request.get(`/api/enterprise/work-orders/${order.id}`);
+  expect((await fetched.json()).workOrder.id).toBe(order.id);
+});
+
 test('تقرير HTML يدعم الطباعة إلى PDF', async ({ request }) => {
   const response = await request.get('/api/projects/1/report/html?print=1');
   expect(response.ok()).toBeTruthy();

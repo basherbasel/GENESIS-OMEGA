@@ -24,15 +24,16 @@ genesis-omega/
 │   ├── App.tsx                حالة الواجهة العامة والتوجيه بين العروض الستة.
 │   ├── index.css              تنسيقات Tailwind والثيم الداكن.
 │   ├── main.tsx               تحميل React في جذر DOM.
-│   ├── components/            عشرة مكوّنات واجهة (انظر القائمة أدناه).
+│   ├── components/            أحد عشر مكوّن واجهة (انظر القائمة أدناه).
 │   ├── lib/                   وحدات المنطق (انظر القائمة أدناه).
-│   └── lib/brains/            عقول محلية وفهرس مستودعات وترقيع جراحي (v2.0).
+│   ├── lib/brains/            عقول محلية وفهرس مستودعات وترقيع جراحي (v2.0).
+│   └── lib/enterprise/        الأقسام العشرة وآلة حالة أوامر العمل (v2.0).
 ├── data/                      حالة التشغيل: omega_store.db (WAL) + مرآة omega_store.json + workspaces/exports/voice_cache.
 ├── backups/                   نسخ احتياطية موسومة بالطابع الزمني.
 ├── models.config.json         إعداد Ollama المحلي (النماذج والأدوار).
 ├── public/assets/aistudio/    أصول واجهة المنصة الأصلية.
 ├── playwright.config.ts       إعداد Playwright: webServer + chromium + baseURL.
-├── e2e/studio.spec.ts         6 اختبارات E2E حقيقية (تنقل/لغة/لوحة/نموذج/SSE/PDF).
+├── e2e/studio.spec.ts         8 اختبارات E2E حقيقية (تنقل/لغة/لوحة/نموذج/SSE/أقسام/أمر عمل/PDF).
 └── .github/workflows/ci.yml   install + lint + test + doctor --ci + build.
 ```
 
@@ -76,8 +77,10 @@ genesis-omega/
 | brain_registry.ts | 4 ملفات عقول محلية ببارامترات حتمية وخريطة نماذج مثبّتة. |
 | repo_indexer.ts | فهرس رموز متعدد اللغات بلا تبعيات مع ميزانية رموز. |
 | surgical_patcher.ts | SEARCH/REPLACE آمن بفحص مسارات وتحقق وتراجع ذري. |
-| `*.test.ts` | 25 ملف اختبار تغطي 105 حالة (آخر تشغيل: 105 ناجح، 0 فاشل). |
-| `playwright.config.ts` + `e2e/studio.spec.ts` | 6 اختبارات متصفح E2E منفصلة عن `npm test`. |
+| enterprise/departments.ts | 10 أقسام هندسية بعقود وبوابات تحقق وتصنيف حتمي يربط كل قسم بعقل محلي. |
+| enterprise/work_order_engine.ts | آلة حالة persisted لأوامر العمل مع فشل مغلق صريح وبث كل انتقال عبر SSE. |
+| `*.test.ts` | 26 ملف اختبار تغطي 109 حالة (آخر تشغيل: 109 ناجح، 0 فاشل). |
+| `playwright.config.ts` + `e2e/studio.spec.ts` | 8 اختبارات متصفح E2E منفصلة عن `npm test`. |
 
 ## مكوّنات الواجهة
 
@@ -93,6 +96,7 @@ genesis-omega/
 | ExportModal.tsx | تصدير ZIP ونشر Git واختيار Dry Run. |
 | AuthGate.tsx | شاشة الدخول عندما يُضبط OMEGA_API_KEY. |
 | DashboardView.tsx | لوحة قياسات بـ CSS خالص من بيانات المتجر والمتحقق. |
+| EnterpriseView.tsx | تبويب أوامر الشركة: الأقسام العشرة، إنشاء/تشغيل أمر، ومراقبة الانتقالات الحيّة. |
 
 ## تدفق البيانات
 

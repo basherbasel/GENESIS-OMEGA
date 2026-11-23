@@ -63,6 +63,9 @@ import { formatSseFrame, studioEvents } from './src/lib/event_bus';
 import { studioJobs } from './src/lib/job_queue';
 import { RateLimiter } from './src/lib/rate_limit';
 import { synthesizeWithBridge } from './src/lib/local_synthesis';
+import { brainInferenceOptions, BRAIN_PROFILES, resolveBrainModel } from './src/lib/brains/brain_registry';
+import { DEPARTMENTS } from './src/lib/enterprise/departments';
+import { WorkOrderEngine } from './src/lib/enterprise/work_order_engine';
 import {
   computeUnifiedDiffs,
   evaluateWithAtomicRollback,
@@ -78,6 +81,7 @@ import type {
   EcosystemKey,
   ExecutionVerifySummary,
   GovernorStats,
+  ModelRoutingConfig,
   PendingSuggestion,
   ProjectMode,
   ProjectRecord,
@@ -1018,6 +1022,61 @@ async function startServer() {
     return { projectId: project.id, score: project.score, status: project.status };
   });
 
+  // v2 Phase 2: enterprise work orders backed by the same SQLite store and
+  // driven exclusively by local brains, real OS verification and real healing.
+  const installedBrains = new Set(localModelStatus.models);
+  const workOrderEngine = new WorkOrderEngine({
+    workspaceRoot: path.join(DATA_DIR, 'workspaces'),
+    store: {
+      load: () => {
+        const raw = STORE_REPOSITORY.getMetaValue('workOrders');
+        if (!raw) return [];
+        try {
+          return JSON.parse(raw) as ReturnType<WorkOrderEngine['list']>;
+        } catch {
+          return [];
+        }
+      },
+      save: (orders) => STORE_REPOSITORY.setMetaValue('workOrders', JSON.stringify(orders)),
+    },
+    synthesize: async ({ role, title, prompt }) => {
+      const options = brainInferenceOptions(role);
+      const builder = resolveBrainModel(role, installedBrains);
+      const routing: ModelRoutingConfig = {
+        architect: builder,
+        strategist: builder,
+        builder_alpha: builder,
+        builder_beta: builder,
+        red_team: builder,
+        synthesizer_healer: builder,
+      };
+      return synthesizeWithBridge({
+        title,
+        prompt,
+        eco: ECOSYSTEM_CATALOG.typescript,
+        routing,
+        vault: store.vault,
+        numCtx: options.numCtx,
+        numPredict: options.numPredict,
+      });
+    },
+    verify: (workspaceDir, files, ecosystemKey) => verifyProjectWorkspace(workspaceDir, files, ecosystemKey),
+    scan: scanSecretsAndSecurity,
+    heal: async ({ files, workspaceDir, verification, ecosystemKey }) => {
+      const outcome = await healProject({
+        projectId: -1,
+        files,
+        ecosystemKey,
+        baselineVerification: verification,
+        workspaceRoot: path.join(DATA_DIR, 'workspaces'),
+        maxIterations: 3,
+        verify: (candidate, dir) => verifyProjectWorkspace(dir, candidate, ecosystemKey),
+      });
+      return outcome.report.attempts.length > 0 ? { files: outcome.files, report: outcome.report } : null;
+    },
+    onEvent: (event) => studioEvents.publish('work_order', event),
+  });
+
   const piperTts = new PiperNeuralVoiceEngine({
     baseDir: __dirname,
     cacheDir: path.join(DATA_DIR, 'voice_cache'),
@@ -1287,6 +1346,7 @@ code{background:#020617;padding:2px 6px;border-radius:4px;color:#38bdf8}</style>
     };
     const offState = studioEvents.subscribe('state', forward);
     const offJob = studioEvents.subscribe('job', forward);
+    const offWorkOrder = studioEvents.subscribe('work_order', forward);
     const heartbeat = setInterval(() => {
       try {
         res.write(': ping\n\n');
@@ -1299,6 +1359,7 @@ code{background:#020617;padding:2px 6px;border-radius:4px;color:#38bdf8}</style>
     req.on('close', () => {
       offState();
       offJob();
+      offWorkOrder();
       clearInterval(heartbeat);
     });
   });
@@ -1337,6 +1398,54 @@ code{background:#020617;padding:2px 6px;border-radius:4px;color:#38bdf8}</style>
 
   app.get('/api/jobs', (_req, res) => {
     res.json({ jobs: studioJobs.list(), active: studioJobs.activeCount });
+  });
+
+  // 1e. v2 Enterprise: departments catalogue and persisted work orders.
+  app.get('/api/enterprise/departments', (_req, res) => {
+    res.json({ departments: Object.values(DEPARTMENTS) });
+  });
+
+  app.get('/api/enterprise/work-orders', (_req, res) => {
+    res.json({ workOrders: workOrderEngine.list() });
+  });
+
+  app.get('/api/enterprise/work-orders/:id', (req, res) => {
+    const order = workOrderEngine.get(req.params.id);
+    if (!order) {
+      res.status(404).json({ error: 'أمر العمل غير موجود.' });
+      return;
+    }
+    res.json({ workOrder: order });
+  });
+
+  app.post('/api/enterprise/work-orders', async (req, res) => {
+    const title = String(req.body?.title || '').trim();
+    const problemStatement = String(req.body?.problemStatement || '').trim();
+    if (title.length < 2 || problemStatement.length < 5) {
+      res.status(400).json({ error: 'يرجى إدخال عنوان ووصف هندسي صالحين.' });
+      return;
+    }
+    const order = workOrderEngine.create({
+      title,
+      problemStatement,
+      targetLang: typeof req.body?.targetLang === 'string' ? req.body.targetLang : undefined,
+      ecosystemKey: (req.body?.ecosystemKey as EcosystemKey) || undefined,
+    });
+    if (req.body?.run === true) {
+      const finished = await workOrderEngine.run(order.id);
+      res.status(201).json({ workOrder: finished });
+      return;
+    }
+    res.status(201).json({ workOrder: order });
+  });
+
+  app.post('/api/enterprise/work-orders/:id/run', async (req, res) => {
+    try {
+      const order = await workOrderEngine.run(req.params.id);
+      res.json({ workOrder: order });
+    } catch (err) {
+      res.status(404).json({ error: err instanceof Error ? err.message : 'أمر العمل غير موجود.' });
+    }
   });
 
   // 2. Projects CRUD & Pipeline
