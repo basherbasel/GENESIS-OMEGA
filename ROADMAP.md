@@ -282,7 +282,7 @@ npm run lint && npm test
 
 ```
 npm run lint        → tsc --noEmit
-npm test            → 153 pass / 0 fail / 0 skipped
+npm test            → 154 pass / 0 fail / 0 skipped
 npm run check       → lint + test + check:secrets + doctor = exit 0
 npm run doctor      → critical 9/9
 npm run doctor -- --ci → 4/4 مُنفَّذ + 5 مُعلَن تخطيها
@@ -372,11 +372,11 @@ npm run restore -- <dir> --yes → RESTORE_OK
 
 - `re_lab/binary_inspector.ts`: فاحص ثنائي بلا تبعيات، حارس مسار وحجم 32MiB، رؤوس ELF/PE/Mach-O/Android boot.img/GPT/GGUF، إنتروبيا شانون بنوافذ، نصوص ASCII/UTF-16 بإزاحات، وفك حزم بروتوكول بـ 8 أنواع حقول وتحقق CRC-16/Modbus. يستخدم `IncrementalArtifactCache` بمفتاح SHA-256 ويُسجَّل في `audit_ledger`.
 - مسارات `GET /api/enterprise/deep-tech` و`POST /api/re/inspect-binary` و`POST /api/re/decode-frame`، أوامر صوتية عربية/إنجليزية للاستعلام والتفتيش وإطلاق أمر ثلاثي الطبقات، ولوحة `EnterpriseView` ثنائية اللغة (536 مفتاحاً).
-- 7 اختبارات فاحص + اختبار صوت v5 + E2E رابع عشر، و`npm test` → 153/153، E2E → 14/14.
+- 8 اختبارات فاحص + اختبار صوت v5 + E2E رابع عشر، و`npm test` → 154/154، E2E → 14/14.
 
 **التالي:** اكتملت v5.0 — لا مرحلة تالية؛ أي عمل جديد يُسجَّل أولاً في `BACKLOG.md` بقرار وتاريخ.
 
 **التوقيع:** المهندس بشار — owner & executor
-**آخر تحديث:** 23 نوفمبر 2026
+**آخر تحديث:** 24 نوفمبر 2026
 
 > الوثيقة المرجعية للحالة الآن: `INVENTORY.md`. خطة التشغيل: `OPS.md`. الحدود: `LIMITATIONS.md`.

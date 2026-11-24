@@ -11,7 +11,7 @@ sh scripts/bootstrap.sh --pull-models    # يسحب النماذج صراحةً 
 npm install
 cp .env.example .env.local   # أضف GEMINI_API_KEY اختيارياً للتوليد السحابي
 npm run dev                  # http://127.0.0.1:3000
-npm test                     # 153 اختبار وحدة/تكامل
+npm test                     # 154 اختبار وحدة/تكامل
 npm run test:e2e             # 14 اختبار متصفح حقيقية (Playwright)
 npm run check                # lint + test + secrets + doctor
 ```
@@ -252,7 +252,7 @@ Inspection is strictly defensive/interoperability-oriented: canonical path guard
 
 ## Verification & integrity policy
 
-- `npm test` runs **every** unit/integration test file under `src/lib/*.test.ts` (33 files, 153 cases). Browser tests are separate: `npm run test:e2e` (14 cases, including the v5 bilingual RE lab). It is the
+- `npm test` runs **every** unit/integration test file under `src/lib/*.test.ts` (33 files, 154 cases). Browser tests are separate: `npm run test:e2e` (14 cases, including the v5 bilingual RE lab). It is the
   canonical check; `npm run lint` / `npx tsc --noEmit` must also pass with zero errors.
 - Verification reports count **only tests the OS runner actually executed**. When no test
   suite exists in a generated project, the report says so explicitly instead of inventing

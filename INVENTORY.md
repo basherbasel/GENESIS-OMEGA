@@ -1,13 +1,13 @@
 # INVENTORY — جرد الملفات والاختبارات
 
-هذا السجل مولّد من أوامر فعلية، لا من تقدير. آخر تحديث: 2026-11-23.
+هذا السجل مولّد من أوامر فعلية، لا من تقدير. آخر تحديث: 2026-11-24.
 
 ## طريقة الجرد
 
 ```
 git ls-files | Measure-Object -Line          → 147 ملفاً متتبعاً (بعد هذا الالتزام)
 Get-ChildItem src/lib/**/*.test.ts           → 33 ملف اختبار
-npm test                                     → 153 pass / 0 fail / 0 skipped
+npm test                                     → 154 pass / 0 fail / 0 skipped
 npm run test:e2e                             → 14 pass / 0 fail (Playwright chromium)
 npm run check                                → critical 9/9 · exit 0
 ./scripts/bootstrap.sh --pull-models         → تهيئة لينكس/ماك (سحب النماذج اختياري وصريح)
@@ -26,7 +26,7 @@ npm run check                                → critical 9/9 · exit 0
 | `(root)` | — | `playwright.config.ts` لإعداد المتصفح والخادم. |
 | `public` | 2 | أصول المنصة الأصلية. |
 
-## سجل الاختبارات (33 ملفاً / 153 اختباراً)
+## سجل الاختبارات (33 ملفاً / 154 اختباراً)
 
 | الملف | عدد الحالات | ما يغطيه |
 |---|---|---|
@@ -60,7 +60,7 @@ npm run check                                → critical 9/9 · exit 0
 | `store_schema.test.ts` | 2 | قبول متجر صالح ورفض تالف بمخطط Zod. |
 | `watcher.test.ts` | 2 | رفض المسارات النظامية، كشف تغيير SHA-256. |
 | `voice/voice_dialogue.test.ts` | 12 | كشف اللغة، توجيه الأوامر، تنفيذ أو فشل مغلق، الحوار عبر الجسر، نماذج Piper، STT، ونوايا v3/v5 (رسم/سجل/تلوث/أقسام/فحص ثنائي/أمر طبقي). |
-| `re_lab/binary_inspector.test.ts` | 7 | رؤوس ELF/PE/Android/GPT/GGUF، إنتروبيا شانون، فك حزمة مع CRC-16، حارس المسار، كاش SHA-256، تصنيف 7 أقسام و3 طبقات. |
+| `re_lab/binary_inspector.test.ts` | 8 | رؤوس ELF/PE/Android/GPT/GGUF، إنتروبيا شانون، فك حزمة مع CRC-16، حارس المسار والروابط الرمزية، كاش SHA-256، تصنيف 7 أقسام و3 طبقات. |
 | `runtime/v4_runtime.test.ts` | 7 | حل العقول المخصصة، كشف هلوسة الاستيراد/الرموز، محرك JSON الصارم، ذاكرة SHA-256 مع إبطال ببايت واحد، ضاغط السياق، كاسر الركود، قتل شجرة العمليات وتنظيف المساحات. |
 | `security/security_v3.test.ts` | 3 | تتبّع تلوث عبر 8 لغات بأكواد CWE، مرور الكود المُطهَّر، كشف العبث بسجل التجزئة المتسلسل. |
 
@@ -68,7 +68,7 @@ npm run check                                → critical 9/9 · exit 0
 
 ```
 npm run lint         → tsc --noEmit
-npm test             → 153/153
+npm test             → 154/154
 npm run test:e2e     → 14/14 (Playwright)
 npm run check:secrets→ SECRETS_OK findings=0
 npm run doctor       → critical 9/9

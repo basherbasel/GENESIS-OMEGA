@@ -6,7 +6,7 @@
 
 | الركن | الملف المرجعي | ما يضمنه |
 |---|---|---|
-| جرد الملفات والاختبارات | `INVENTORY.md` | 147 ملفاً، 33 ملف اختبار، 153 حالة — بالأوامر لا بالتقدير |
+| جرد الملفات والاختبارات | `INVENTORY.md` | 147 ملفاً، 33 ملف اختبار، 154 حالة — بالأوامر لا بالتقدير |
 | مخزن الحالة | `data/omega_store.db` (WAL) + مرآة `omega_store.json` | كتابة ذرية، وهجرة تلقائية من المرآة عند الاستعادة |
 | البث المباشر | `GET /api/events` (SSE) | `event: ready` و`event: state` و`event: job`، نبضة كل 15 ثانية |
 | المهام الخلفية | `POST /api/jobs` + `GET /api/jobs/:id` | يُعيد `jobId` فوراً؛ الحالة `queued/running/done/failed` وتُدفع عبر SSE |
@@ -24,7 +24,7 @@
 ```
 npm run dev            تشغيل الاستوديو على 127.0.0.1:3000
 npm run backup         نسخ حالة التشغيل
-npm run check          lint + 153 اختبار + فحص أسرار + doctor
+npm run check          lint + 154 اختبار + فحص أسرار + doctor
 npm run doctor         فحص جاهزية مفصّل بجدول [✓/✗/—]
 npm run doctor -- --ci فحص CI: البوابات المحمولة تُنفَّذ، والبوابات المضيفة تُعلَن كمتخطاة لا كنجاح صامت
 npm run test:e2e    14 اختبارات متصفح حقيقية (Playwright chromium)، منفصلة عن npm test

@@ -52,14 +52,19 @@ export function validateBinaryPath(rawPath: string): BinaryPathValidation {
   }
   if (!stat.isFile()) return reject('FILE_NOT_FOUND', 'path is not a regular file');
 
-  const real = fs.realpathSync(trimmed);
+  const candidate = path.resolve(trimmed);
+  const real = fs.realpathSync(candidate);
+  // A symlink must not resolve outside the directory that contains the link.
+  // Legitimate links to siblings (e.g. python -> python3) remain usable.
+  if (candidate !== real) {
+    const relToLinkParent = path.relative(path.dirname(candidate), real);
+    if (relToLinkParent.startsWith('..') || path.isAbsolute(relToLinkParent)) {
+      return reject('UNSAFE_PATH', 'symlink escape rejected');
+    }
+  }
   const realLower = real.replace(/\\/g, '/').toLowerCase();
   if (SYSTEM_PREFIXES.some((prefix) => realLower.startsWith(prefix))) {
     return reject('UNSAFE_PATH', 'resolved path is inside a forbidden root');
-  }
-  const relative = path.relative(path.dirname(real), real);
-  if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) {
-    return reject('UNSAFE_PATH', 'symlink escape rejected');
   }
   return { ok: true, resolved: real, message: 'ok' };
 }

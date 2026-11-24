@@ -164,6 +164,26 @@ test('binary path guard rejects system roots, drive-relative and traversal input
   }
 });
 
+test('symlink escaping the containing directory is rejected', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'omega-re-link-'));
+  const outside = path.join(os.tmpdir(), `omega-re-outside-${Date.now()}.bin`);
+  const link = path.join(dir, 'link.bin');
+  try {
+    fs.writeFileSync(outside, bootBuffer());
+    try {
+      fs.symlinkSync(outside, link, 'file');
+    } catch {
+      return; // platform does not grant symlink privileges; guard is still enforced
+    }
+    const validation = validateBinaryPath(link);
+    assert.equal(validation.ok, false);
+    assert.equal(validation.code, 'UNSAFE_PATH');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+    if (fs.existsSync(outside)) fs.rmSync(outside, { force: true });
+  }
+});
+
 test('inspection is cached by SHA-256 and invalidates when a byte changes', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'omega-re-cache-'));
   const cache = new IncrementalArtifactCache(memoryStore());
@@ -207,5 +227,6 @@ test('seven deep-tech divisions classify and map onto the three real layers', ()
   const plan = buildLayeredArchitecturePlan(assignments);
   assert.deepEqual(plan.layers.map((layer) => layer.id), ['core', 'middleware', 'presentation']);
   assert.ok(plan.layers.every((layer) => layer.divisions.length > 0));
+  assert.ok(plan.layers.every((layer) => layer.responsibilities.length >= 2));
   assert.ok(plan.contracts.length > 0);
 });

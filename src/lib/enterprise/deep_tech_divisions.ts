@@ -232,7 +232,7 @@ export function buildLayeredArchitecturePlan(divisions: DeepTechAssignment[]): L
     labelAr: layer.labelAr,
     labelEn: layer.labelEn,
     technologies: [...layer.technologies],
-    responsibilities: [layer.id === 'core' ? layer.responsibilityEn : layer.responsibilityAr],
+    responsibilities: [layer.responsibilityAr, layer.responsibilityEn],
     deliverables: [],
     divisions: [],
   }));
