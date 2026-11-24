@@ -21,6 +21,7 @@ piper_models/
 !/models/piper/
 /models/**/*.gguf
 /models/**/*.onnx
+/models/**/*.onnx.json
 
 .env
 .env*
