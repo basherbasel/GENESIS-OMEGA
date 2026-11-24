@@ -17,6 +17,7 @@ npm run check                # lint + test + secrets + doctor
 ```
 
 - **ترخيص وحوكمة:** [MIT License](LICENSE) · [CONTRIBUTING.md](CONTRIBUTING.md) · [SECURITY.md](SECURITY.md). `ai_pipeline.ts` منطقة محظورة التعديل؛ كل استنتاج محلي يمر عبر `local_synthesis.ts` → `llama-bridge.generate()`.
+- **مشروع v5 الحقيقي:** [Industrial Digital Twin](projects/industrial-digital-twin/README.md) — C++17 + Python + HMI بثلاث طبقات وبناء/اختبار فعلي على OS.
 - **بدون مفتاح Gemini:** يعمل الاستوديو بالكامل عبر النماذج المحلية (Ollama) والمسار الحتمي.
 - **تشغيل محلي أولاً:** `OMEGA_LOCAL_FIRST=1 npm run dev`
 - انظر قسم [Local quantized coding models](#local-quantized-coding-models-ollama) لاختيار النماذج.

@@ -5,7 +5,7 @@
 ## طريقة الجرد
 
 ```
-git ls-files | Measure-Object -Line          → 147 ملفاً متتبعاً (بعد هذا الالتزام)
+git ls-files | Measure-Object -Line          → 158 ملفاً متتبعاً (بعد هذا الالتزام)
 Get-ChildItem src/lib/**/*.test.ts           → 33 ملف اختبار
 npm test                                     → 154 pass / 0 fail / 0 skipped
 npm run test:e2e                             → 14 pass / 0 fail (Playwright chromium)
@@ -21,6 +21,7 @@ npm run check                                → critical 9/9 · exit 0
 | `src` | 107 | `App.tsx`، `main.tsx`، `index.css`، 12 مكوّنات، وحدات `lib` + `lib/brains` (6) + `lib/enterprise` (9) + `lib/re_lab` (2) + `lib/runtime` (3) + `lib/security` (3) + `lib/voice` (4)، 33 ملف اختبار (ضمن الـ 107). |
 | `scripts` | 8 | `backup.ts`, `restore.ts`, `doctor.ts`, `check-secrets.ts`, `windows_job_sandbox.ps1`, `bootstrap.ps1`, `bootstrap.sh`, `vosk_transcribe.mjs`. |
 | `models` | 4 | `models/brains/Modelfile.architect|coder|healer|auditor` — قوالب Ollama متتبعة؛ الأوزان الثنائية مستبعدة. |
+| `projects` | 11 | `projects/industrial-digital-twin/` — مشروع v5 الحقيقي: C++17 core + Python bridge + HMI + OS tests. |
 | `.github` | 1 | `workflows/ci.yml`. |
 | `e2e` | 1 | `studio.spec.ts` — 14 اختبار متصفح حقيقية عبر Playwright (منها مختبر v5 ثنائي اللغة). |
 | `(root)` | — | `playwright.config.ts` لإعداد المتصفح والخادم. |

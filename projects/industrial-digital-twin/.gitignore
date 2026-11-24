@@ -1,0 +1,8 @@
+# Native build artifacts
+core/*.exe
+core/*.o
+*.obj
+
+# Python bytecode
+__pycache__/
+*.py[cod]

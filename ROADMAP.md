@@ -254,7 +254,7 @@ npm run lint && npm test
 | 5 — الحوار الصوتي | ✅ | `VoiceHud` + `voice_dialogue` + STT محلي + Piper ثنائي اللغة |
 | 4د — لغة إنجليزية | ✅ | `i18n.ts` + زر تبديل + اختبار E2E |
 
-### 14.2 خريطة الملفات (147 ملف متتبع)
+### 14.2 خريطة الملفات (158 ملف متتبع)
 
 | المسار | Count | الوظيفة |
 |---|---|---|
@@ -373,6 +373,7 @@ npm run restore -- <dir> --yes → RESTORE_OK
 - `re_lab/binary_inspector.ts`: فاحص ثنائي بلا تبعيات، حارس مسار وحجم 32MiB، رؤوس ELF/PE/Mach-O/Android boot.img/GPT/GGUF، إنتروبيا شانون بنوافذ، نصوص ASCII/UTF-16 بإزاحات، وفك حزم بروتوكول بـ 8 أنواع حقول وتحقق CRC-16/Modbus. يستخدم `IncrementalArtifactCache` بمفتاح SHA-256 ويُسجَّل في `audit_ledger`.
 - مسارات `GET /api/enterprise/deep-tech` و`POST /api/re/inspect-binary` و`POST /api/re/decode-frame`، أوامر صوتية عربية/إنجليزية للاستعلام والتفتيش وإطلاق أمر ثلاثي الطبقات، ولوحة `EnterpriseView` ثنائية اللغة (536 مفتاحاً).
 - 8 اختبارات فاحص + اختبار صوت v5 + E2E رابع عشر، و`npm test` → 154/154، E2E → 14/14.
+- مشروع تطبيقي حقيقي: `projects/industrial-digital-twin/` — توأم رقمي صناعي بثلاث طبقات (C++17/Python/HMI) يُبنى ويُختبر بـ g++ وpython3 على OS، مع 5 اختبارات نظام فعلية.
 
 **التالي:** اكتملت v5.0 — لا مرحلة تالية؛ أي عمل جديد يُسجَّل أولاً في `BACKLOG.md` بقرار وتاريخ.
 

@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title> GENESIS-OMEGA — Industrial Digital Twin</title>
+<style>
+  :root { color-scheme: dark; --bg:#07111e; --panel:#0d1b2a; --line:#1c3550; --accent:#38bdf8; --ok:#34d399; --warn:#fbbf24; --bad:#fb7185; }
+  * { box-sizing:border-box }
+  body { margin:0; background:var(--bg); color:#dbeafe; font:13px/1.5 system-ui, sans-serif; }
+  header { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 18px; border-bottom:1px solid var(--line); }
+  h1 { font-size:16px; margin:0; color:#e0f2fe; }
+  button, input { font:inherit; }
+  button { background:var(--accent); color:#04121f; border:0; border-radius:6px; padding:6px 12px; cursor:pointer; font-weight:600; }
+  input { background:#071521; color:#e0f2fe; border:1px solid var(--line); border-radius:6px; padding:7px 9px; width:min(420px,60vw); direction:ltr; }
+  main { padding:16px 18px; display:grid; gap:14px; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); }
+  section { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px; }
+  h2 { font-size:13px; margin:0 0 10px; color:#7dd3fc; }
+  canvas { width:100%; height:170px; background:#050d16; border:1px solid var(--line); border-radius:6px; }
+  .value { font:600 20px ui-monospace,monospace; color:#f8fafc; }
+  .nominal { color:var(--ok) } .warning { color:var(--warn) } .critical { color:var(--bad) }
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:8px }
+  pre { white-space:pre-wrap; word-break:break-all; font:11px ui-monospace,monospace; color:#93c5fd; background:#050d16; padding:8px; border-radius:6px; min-height:56px; }
+  small { color:#7b9ab5 }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title">مختبر التوأم الرقمي الصناعي</h1>
+  <button id="lang" type="button">English</button>
+</header>
+<main>
+  <section>
+    <h2 id="h-wave">موجة الاهتزاز والطيف</h2>
+    <canvas id="wave" width="640" height="340"></canvas>
+    <div class="row"><small id="h-peak">التردد القمّي</small><span class="value" id="peak">—</span></div>
+  </section>
+  <section>
+    <h2 id="h-temp">تنبؤ حراري RK4</h2>
+    <canvas id="gauge" width="640" height="340"></canvas>
+    <div class="row"><small id="h-tempval">درجة المحمل المتوقعة</small><span class="value" id="temp">—</span></div>
+  </section>
+  <section>
+    <h2 id="h-frame">فاحص الإطار الثنائي</h2>
+    <div class="row"><input id="hex" value="5a3c12346553f1003fc00000bf4ccccd012c84f1" /><button id="send" type="button">إرسال</button></div>
+    <pre id="result">—</pre>
+    <div class="row"><small id="h-health">الحالة</small><span class="value" id="health">—</span></div>
+  </section>
+  <section>
+    <h2 id="h-log">سجل الإنذارات</h2>
+    <pre id="log">—</pre>
+  </section>
+</main>
+<script>
+const L = {
+  ar: { title:'مختبر التوأم الرقمي الصناعي', toggle:'English', wave:'موجة الاهتزاز والطيف', temp:'تنبؤ حراري RK4', frame:'فاحص الإطار الثنائي', health:'الحالة', log:'سجل الإنذارات', peak:'التردد القمّي', tempval:'درجة المحمل المتوقعة', send:'إرسال' },
+  en: { title:'Industrial Digital Twin Lab', toggle:'العربية', wave:'Vibration waveform & spectrum', temp:'RK4 thermal forecast', frame:'Binary frame inspector', health:'Health', log:'Anomaly log', peak:'Peak frequency', tempval:'Predicted bearing temperature', send:'Send' }
+};
+let lang = 'ar';
+function applyLang(){
+  const d = L[lang];
+  title.textContent=d.title; lang.textContent=d.toggle; h_wave.textContent=d.wave; h_temp.textContent=d.temp;
+  h_frame.textContent=d.frame; h_health.textContent=d.health; h_log.textContent=d.log; h_peak.textContent=d.peak;
+  h_tempval.textContent=d.tempval; send.textContent=d.send;
+  document.documentElement.lang = lang; document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+}
+lang.addEventListener('click', ()=>{ lang = lang === 'ar' ? 'en' : 'ar'; applyLang(); });
+
+const wave = document.getElementById('wave').getContext('2d');
+const gauge = document.getElementById('gauge').getContext('2d');
+let frames = [];
+function drawWave(sample){
+  const w=wave.canvas.width, h=wave.canvas.height;
+  wave.clearRect(0,0,w,h); wave.strokeStyle='#1c3550'; wave.beginPath(); wave.moveTo(0,h/2); wave.lineTo(w,h/2); wave.stroke();
+  wave.strokeStyle='#38bdf8'; wave.beginPath();
+  frames.slice(-64).forEach((v,i,a)=>{ const x=i*w/Math.max(a.length-1,1); const y=h/2-v*h/8; i===0?wave.moveTo(x,y):wave.lineTo(x,y); });
+  wave.stroke();
+}
+function drawGauge(value){
+  const w=gauge.canvas.width,h=gauge.canvas.height;
+  gauge.clearRect(0,0,w,h);
+  const pct=Math.max(0,Math.min(1,(value-250)/120));
+  gauge.fillStyle='#0b2233'; gauge.fillRect(40,80,w-80,60);
+  gauge.fillStyle=pct>0.7?'#fb7185':pct>0.45?'#fbbf24':'#34d399'; gauge.fillRect(40,80,(w-80)*pct,60);
+  gauge.fillStyle='#e0f2fe'; gauge.font='28px monospace'; gauge.fillText(value.toFixed(2)+' K',40,60);
+}
+async function ingest(){
+  try{
+    const r = await fetch('/api/ingest-frame',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({hex:document.getElementById('hex').value.trim()})});
+    const data = await r.json();
+    if(!r.ok) throw new Error(data.error || 'rejected');
+    result.textContent = JSON.stringify(data.frame, null, 2);
+    health.textContent = data.health.state + ' (' + data.health.healthIndex + ')';
+    health.className = 'value ' + data.health.state.toLowerCase();
+    frames.push(data.frame.accelMagnitude);
+    peak.textContent = data.features.spectralPeakHz.toFixed(2) + ' Hz';
+    temp.textContent = data.frame.predictedTempK.toFixed(2) + ' K';
+    drawWave(data.frame.accelMagnitude); drawGauge(data.frame.predictedTempK);
+    log.textContent = data.health.state + ' · RUL ' + data.health.rulMinutes + ' min\n' + log.textContent;
+  }catch(err){ result.textContent = String(err.message || err); }
+}
+send.addEventListener('click', ingest);
+applyLang();
+</script>
+</body>
+</html>

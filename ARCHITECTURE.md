@@ -41,6 +41,7 @@ genesis-omega/
 ├── backups/                   نسخ احتياطية موسومة بالطابع الزمني.
 ├── models.config.json         إعداد Ollama المحلي (النماذج والأدوار).
 ├── models/brains/Modelfile.*  أربعة قوالب Ollama للعقول omega-* (الأوزان *.gguf مستبعدة).
+├── projects/industrial-digital-twin/  مشروع v5 ثلاثي الطبقات: C++17 core + Python bridge + HMI + OS tests.
 ├── public/assets/aistudio/    أصول واجهة المنصة الأصلية.
 ├── playwright.config.ts       إعداد Playwright: webServer + chromium + baseURL.
 ├── e2e/studio.spec.ts         14 اختبار E2E حقيقية (تنقل/لغة/لوحة/نموذج/SSE/أقسام/أمر عمل/PDF/صيانة/تبديل/حوار/لوحات v3/قياسات v4/مختبر v5).
